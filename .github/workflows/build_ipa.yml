@@ -1,0 +1,55 @@
+name: Build Flutter IPA
+
+# 触发条件：推送到 main 分支 或 手动触发
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # 允许在 GitHub 页面手动触发
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest  # 必须使用 macOS 虚拟机（支持 Xcode）
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'  # 使用最新稳定版 Flutter（可按需修改）
+
+      - name: 安装项目依赖
+        run: |
+          flutter pub get  # 安装 Dart 依赖
+          cd ios && pod install  # 安装 iOS 原生依赖（CocoaPods）
+
+      - name: 构建 Flutter iOS 框架（Release 模式）
+        run: flutter build ios --release --no-codesign  # 禁用签名（测试用）
+
+      - name: 用 Xcode 打包 IPA
+        run: |
+          # 进入 iOS 项目目录
+          cd ios
+          # 归档项目（生成 .xcarchive）
+          xcodebuild -workspace Runner.xcworkspace \
+                    -scheme Runner \
+                    -configuration Release \
+                    -archivePath ../build/Runner.xcarchive \
+                    archive
+          # 从归档导出 IPA（无需签名，适合测试）
+          xcodebuild -exportArchive \
+                    -archivePath ../build/Runner.xcarchive \
+                    -exportOptionsPlist ExportOptions.plist \
+                    -exportPath ../build/ipa
+        env:
+          # 禁用代码签名（测试环境，正式发布需配置证书）
+          DEVELOPMENT_TEAM: ""
+          CODE_SIGN_IDENTITY: ""
+          CODE_SIGNING_REQUIRED: "NO"
+          CODE_SIGNING_ALLOWED: "NO"
+
+      - name: 上传 IPA 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-ipa  # 下载时的文件名
+          path: build/ipa/*.ipa  # IPA 生成路径

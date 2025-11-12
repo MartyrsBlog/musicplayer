@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- 导出方式：development（开发测试，无需付费账号）、app-store（发布到商店，需付费账号） -->
+  <key>method</key>
+  <string>development</string>
+  
+  <!-- 签名方式：手动（配合上面的禁用签名配置） -->
+  <key>signingStyle</key>
+  <string>manual</string>
+  
+  <!-- 允许未签名（测试用） -->
+  <key>allowUnsigned</key>
+  <true/>
+</dict>
+</plist>
