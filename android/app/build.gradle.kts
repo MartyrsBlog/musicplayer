@@ -24,7 +24,7 @@ android {
         applicationId = "com.example.musicplayer"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21  // 将 minSdk 版本设置为 21 或更高
+        minSdk = flutter.minSdkVersion  // 将 minSdk 版本设置为 21 或更高
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

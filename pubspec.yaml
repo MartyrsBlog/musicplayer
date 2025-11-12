@@ -54,6 +54,12 @@ dependencies:
   
   # File picker
   file_picker: ^8.0.3
+  
+  # Audio metadata reading
+  audiotags: ^1.4.0
+  
+  # Shared preferences for storing playback state
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:

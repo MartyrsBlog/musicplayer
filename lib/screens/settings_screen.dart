@@ -19,20 +19,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final playerProvider = Provider.of<PlayerProvider>(context);
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('设置'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '设置',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            
             // 夜间模式切换
             Card(
               child: ListTile(
