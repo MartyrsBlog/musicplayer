@@ -13,15 +13,25 @@ jobs:
       - name: 拉取代码
         uses: actions/checkout@v4
 
-      - name: 安装 Flutter SDK
+      - name: 安装 Flutter SDK（匹配 Dart 3.9.2+）
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'  # 使用最新稳定版 Flutter（可按需修改）
+          flutter-version: '3.27.0'  # 此版本内置 Dart 3.10.0，满足 ^3.9.2 要求
+          # 可选：缓存 Flutter 依赖以加速构建
+          cache: true
+
+      - name: 验证 Flutter 环境
+        run: |
+          flutter --version  # 输出 Flutter 和 Dart 版本，确认是否匹配
+          flutter doctor -v  # 检查环境依赖是否正常
 
       - name: 安装项目依赖
         run: |
-          flutter pub get  # 安装 Dart 依赖
+          flutter pub get  # 安装 Dart 依赖（此时 Dart 版本足够）
           cd ios && pod install  # 安装 iOS 原生依赖（CocoaPods）
+
+      - name: 代码分析与检查（可选，提前发现问题）
+        run: flutter analyze
 
       - name: 构建 Flutter iOS 框架（Release 模式）
         run: flutter build ios --release --no-codesign  # 禁用签名（测试用）
@@ -42,7 +52,7 @@ jobs:
                     -exportOptionsPlist ExportOptions.plist \
                     -exportPath ../build/ipa
         env:
-          # 禁用代码签名（测试环境，正式发布需配置证书）
+          # 禁用代码签名（测试环境）
           DEVELOPMENT_TEAM: ""
           CODE_SIGN_IDENTITY: ""
           CODE_SIGNING_REQUIRED: "NO"
@@ -53,3 +63,4 @@ jobs:
         with:
           name: flutter-ipa  # 下载时的文件名
           path: build/ipa/*.ipa  # IPA 生成路径
+          retention-days: 30  # 产物保留 30 天（可选）
