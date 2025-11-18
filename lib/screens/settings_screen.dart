@@ -14,6 +14,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  bool _isPickingAvatar = false;
+
   @override
   Widget build(BuildContext context) {
     final playerProvider = Provider.of<PlayerProvider>(context);
@@ -33,6 +35,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 用户设置
+            Consumer<PlayerProvider>(
+              builder: (context, playerProvider, child) {
+                return Card(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      child: playerProvider.userAvatarPath.isNotEmpty
+                          ? ClipOval(
+                              child: Image.file(
+                                File(playerProvider.userAvatarPath),
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(Icons.person, color: Colors.white);
+                                },
+                              ),
+                            )
+                          : const Icon(Icons.person, color: Colors.white),
+                    ),
+                    title: Text(
+                      playerProvider.userName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: const Text('点击编辑个人信息'),
+                    trailing: const Icon(Icons.edit),
+                    onTap: () {
+                      _showUserSettingsDialog();
+                    },
+                  ),
+                );
+              },
+            ),
+            
+            const SizedBox(height: 20),
+            
             // 夜间模式切换
             Card(
               child: ListTile(
@@ -43,20 +83,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     playerProvider.toggleDarkMode();
                   },
                 ),
-              ),
-            ),
-            
-            const SizedBox(height: 20),
-            
-            // 扫描音乐
-            Card(
-              child: ListTile(
-                title: const Text('扫描音乐'),
-                subtitle: const Text('扫描本地音乐文件'),
-                trailing: const Icon(Icons.refresh),
-                onTap: () {
-                  _scanMusic();
-                },
               ),
             ),
             
@@ -111,34 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // 扫描音乐
-  void _scanMusic() async {
-    try {
-      final audioManager = AudioManager();
-      final songs = await audioManager.scanLocalMusic();
-      
-      if (mounted) {
-        final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
-        playerProvider.setPlaylist(songs);
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('音乐扫描完成')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('扫描失败: $e'),
-            action: SnackBarAction(
-              label: '重试',
-              onPressed: _scanMusic,
-            ),
-          ),
-        );
-      }
-    }
-  }
+  
 
   // 选择音乐文件夹（仅用于桌面平台）
   void _pickMusicFolder() async {
@@ -211,6 +210,116 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // 显示关于对话框
+  void _showUserSettingsDialog() {
+    final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+    final nameController = TextEditingController(text: playerProvider.userName);
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('个人信息设置'),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 头像选择
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      child: playerProvider.userAvatarPath.isNotEmpty
+                          ? ClipOval(
+                              child: Image.file(
+                                File(playerProvider.userAvatarPath),
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(Icons.person, color: Colors.white);
+                                },
+                              ),
+                            )
+                          : const Icon(Icons.person, color: Colors.white),
+                    ),
+                    title: const Text('头像'),
+                    subtitle: const Text('点击更换头像'),
+                    onTap: () async {
+                      if (_isPickingAvatar) return; // 防止重复点击
+                      
+                      setState(() {
+                        _isPickingAvatar = true;
+                      });
+                      
+                      try {
+                        final result = await FilePicker.platform.pickFiles(
+                          type: FileType.image,
+                          allowMultiple: false,
+                        );
+                        if (result != null && result.files.isNotEmpty) {
+                          final imagePath = result.files.first.path!;
+                          playerProvider.setUserInfo(avatarPath: imagePath);
+                          if (mounted) {
+                            Navigator.pop(context);
+                          }
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            _isPickingAvatar = false;
+                          });
+                        }
+                      }
+                    },
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // 用户名输入
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: '用户名',
+                      border: OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.person),
+                    ),
+                    maxLength: 20,
+                  ),
+                  
+                  
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final newName = nameController.text.trim();
+                if (newName.isNotEmpty) {
+                  playerProvider.setUserInfo(userName: newName);
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('个人信息已更新'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('保存'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  
+
   void _showAboutDialog() {
     showDialog(
       context: context,

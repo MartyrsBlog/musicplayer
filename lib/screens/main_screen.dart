@@ -14,7 +14,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 1; // 修改默认索引为1（音乐标签页）
+  int _currentIndex = 1; // 默认显示音乐页面
   late AudioManager _audioManager;
   bool _isLoading = true;
 
@@ -62,6 +62,12 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   @override
+  void dispose() {
+    _audioManager.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final playerProvider = Provider.of<PlayerProvider>(context);
 
@@ -70,42 +76,61 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('音乐播放器'),
-        actions: [
-          IconButton(
-            icon: Icon(
-              playerProvider.isDarkMode
-                  ? Icons.brightness_7
-                  : Icons.brightness_4,
-            ),
-            onPressed: () {
-              playerProvider.toggleDarkMode();
-            },
-          ),
-        ],
-      ),
       body: _buildBody(),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+      bottomNavigationBar: Consumer<PlayerProvider>(
+        builder: (context, playerProvider, child) {
+          return BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              // 如果点击的是音乐标签（索引1）
+              if (index == 1) {
+                // 检查当前页面是否是音乐标签栏
+                if (_currentIndex == 1) {
+                  // 如果已经在音乐页面，则播放/暂停音乐
+                  playerProvider.togglePlayPause();
+                  return; // 不切换页面
+                } else {
+                  // 如果不在音乐页面，则切换到音乐页面
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                }
+              } else {
+                // 点击其他标签，正常切换页面
+                setState(() {
+                  _currentIndex = index;
+                });
+              }
+            },
+            items: [
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.library_music),
+                label: '音乐库',
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: playerProvider.isPlaying 
+                        ? Theme.of(context).primaryColor 
+                        : Colors.grey,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    playerProvider.isPlaying ? Icons.pause : Icons.play_arrow,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                label: '', // 音乐标签不显示文字
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: '我的',
+              ),
+            ],
+          );
         },
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.library_music),
-            label: '音乐库',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              playerProvider.isPlaying ? Icons.pause : Icons.play_arrow,
-            ),
-            label: '音乐',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: '我的'),
-        ],
       ),
     );
   }
@@ -119,13 +144,7 @@ class _MainScreenState extends State<MainScreen> {
       case 2:
         return const ProfileScreen();
       default:
-        return const MusicLibraryScreen();
+        return const MusicScreen();
     }
-  }
-
-  @override
-  void dispose() {
-    _audioManager.dispose();
-    super.dispose();
   }
 }

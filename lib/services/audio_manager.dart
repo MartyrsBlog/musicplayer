@@ -9,6 +9,7 @@ class AudioManager {
   // 支持的音频格式
   static const List<String> supportedFormats = [
     '.mp3',
+    '.m4a',
     '.flac',
     '.aac',
     '.wav',
@@ -195,6 +196,8 @@ class AudioManager {
                 tags = await AudioTags.read(file.path);
               } catch (e) {
                 print('读取音频标签时出错: $e');
+                // 如果标签读取失败，尝试从文件名提取信息
+                tags = null;
               }
 
               // 使用just_audio库获取音频文件的实际时长

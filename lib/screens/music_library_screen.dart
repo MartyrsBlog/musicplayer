@@ -5,28 +5,71 @@ import '../services/audio_manager.dart';
 import '../models/song.dart';
 import 'dart:io';
 
-class MusicLibraryScreen extends StatelessWidget {
+class MusicLibraryScreen extends StatefulWidget {
   const MusicLibraryScreen({super.key});
+
+  @override
+  State<MusicLibraryScreen> createState() => _MusicLibraryScreenState();
+}
+
+class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
+  bool _isScanning = false;
+
+  Future<void> _refreshMusicLibrary() async {
+    setState(() {
+      _isScanning = true;
+    });
+
+    try {
+      final audioManager = AudioManager();
+      final songs = await audioManager.scanLocalMusic();
+      
+      if (mounted) {
+        final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+        playerProvider.setPlaylist(songs);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('扫描完成，找到 ${songs.length} 首歌曲')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('扫描音乐失败: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isScanning = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final playerProvider = Provider.of<PlayerProvider>(context);
     final songs = playerProvider.playlist;
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        final audioManager = AudioManager();
-        try {
-          final songs = await audioManager.scanLocalMusic();
-          playerProvider.setPlaylist(songs);
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('扫描音乐失败: $e')),
-            );
-          }
-        }
-      },
+    return Scaffold(
+      appBar: AppBar(
+        actions: [
+          IconButton(
+            icon: _isScanning 
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+            onPressed: _isScanning ? null : _refreshMusicLibrary,
+            tooltip: '刷新音乐库',
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _refreshMusicLibrary,
       child: songs.isEmpty
           ? Center(
               child: Column(
@@ -49,20 +92,21 @@ class MusicLibraryScreen extends StatelessWidget {
                   if (Platform.isLinux || Platform.isWindows || Platform.isMacOS)
                     const SizedBox(height: 10),
                   ElevatedButton(
-                    onPressed: () {
-                      // 手动触发扫描
-                      final audioManager = AudioManager();
-                      audioManager.scanLocalMusic().then((songs) {
-                        playerProvider.setPlaylist(songs);
-                      }).catchError((error) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('扫描音乐失败: $error')),
-                          );
-                        }
-                      });
-                    },
-                    child: const Text('扫描音乐'),
+                    onPressed: _isScanning ? null : _refreshMusicLibrary,
+                    child: _isScanning 
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                              SizedBox(width: 8),
+                              Text('扫描中...'),
+                            ],
+                          )
+                        : const Text('扫描音乐'),
                   ),
                 ],
               ),
@@ -107,6 +151,7 @@ class MusicLibraryScreen extends StatelessWidget {
                 );
               },
             ),
+      ),
     );
   }
 

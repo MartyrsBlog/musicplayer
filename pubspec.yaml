@@ -60,6 +60,15 @@ dependencies:
   
   # Shared preferences for storing playback state
   shared_preferences: ^2.3.2
+  
+  # HTTP requests
+  http: ^1.2.1
+  
+  # HTML parsing
+  html: ^0.15.4
+  
+  # Path manipulation
+  path: ^1.9.0
 
 dev_dependencies:
   flutter_test:

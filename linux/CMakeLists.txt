@@ -129,3 +129,14 @@ endif()
 
 # Use mimalloc for avoiding memory leaks (from media-kit's README)
 target_link_libraries(${BINARY_NAME} PRIVATE ${MIMALLOC_LIB})
+
+# Configuration variables.
+set(APPLICATION_ID "com.blmay.musicplayer")
+set(APPLICATION_NAME "Music Player")
+set(BUNDLE_ID "com.blmay.musicplayer")
+set(FLUTTER_CHANNEL "stable")
+set(FLUTTER_VERSION "1.0.0")
+set(FLUTTER_VERSION_MAJOR 1)
+set(FLUTTER_VERSION_MINOR 0)
+set(FLUTTER_VERSION_PATCH 0)
+set(FLUTTER_VERSION_BUILD 1)

@@ -44,6 +44,7 @@ class LyricsService {
       return null;
     } catch (e) {
       print('读取内置歌词时出错: $e');
+      // 如果音频文件损坏或无法读取，直接返回null，让系统尝试读取外挂歌词文件
       return null;
     }
   }
@@ -59,16 +60,23 @@ class LyricsService {
       final lrcFilePath = '${audioFile.parent.path}/$fileNameWithoutExtension.lrc';
       final lrcFile = File(lrcFilePath);
       
+      print('正在查找外挂歌词文件: $lrcFilePath');
+      
       // 检查.lrc文件是否存在
       if (await lrcFile.exists()) {
+        print('找到外挂歌词文件，正在读取...');
         // 读取歌词文件内容
         final lyricsContent = await lrcFile.readAsString();
+        print('外挂歌词读取成功，长度: ${lyricsContent.length}');
         return lyricsContent;
+      } else {
+        print('外挂歌词文件不存在: $lrcFilePath');
       }
       
       return null;
     } catch (e) {
       print('读取外挂歌词时出错: $e');
+      print('音频文件路径: ${song.filePath}');
       return null;
     }
   }

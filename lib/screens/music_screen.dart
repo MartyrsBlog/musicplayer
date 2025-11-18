@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/player_provider.dart';
 import '../models/song.dart';
 import 'package:flutter_lyric/lyrics_reader.dart';
-import 'package:flutter_lyric/lyric_ui/lyric_ui.dart';
-import 'package:flutter_lyric/lyric_ui/ui_netease.dart';
 import 'dart:io';
 
 // 自定义歌词UI样式类
@@ -148,7 +146,7 @@ class _MusicScreenState extends State<MusicScreen>
         _buildProgressBar(playerProvider),
 
         // 控制按钮
-        _buildControlButtons(playerProvider),
+        _buildSimpleControlButtons(playerProvider),
       ],
     );
   }
@@ -207,24 +205,7 @@ class _MusicScreenState extends State<MusicScreen>
                   ),
                 ),
 
-                const SizedBox(height: 20),
-
-                // 切换到歌词界面的提示按钮
-                ElevatedButton.icon(
-                  onPressed: _toggleLyricsScreen,
-                  icon: Icon(
-                    Icons.lyrics,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                  label: Text('查看歌词'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
+                
               ],
             ),
           ),
@@ -283,7 +264,7 @@ class _MusicScreenState extends State<MusicScreen>
               ),
             ),
 
-            // 底部控制区域
+            // 底部控制区域 - 歌词界面不显示控制按钮
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -292,9 +273,6 @@ class _MusicScreenState extends State<MusicScreen>
                   _buildProgressBar(playerProvider),
 
                   const SizedBox(height: 20),
-
-                  // 控制按钮
-                  _buildControlButtons(playerProvider),
                 ],
               ),
             ),
@@ -315,20 +293,26 @@ class _MusicScreenState extends State<MusicScreen>
 
         // 如果有歌词则显示歌词阅读器，否则显示默认文本
         if (lyricsModel != null) {
-          return LyricsReader(
-            model: lyricsModel,
-            position: provider.lyricsPosition,
-            lyricUi: lyricUI,
-            playing: provider.isPlaying,
-            size: Size(double.infinity, MediaQuery.of(context).size.height),
-            emptyBuilder: () => Center(
-              child: Text(
-                '暂无歌词',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withOpacity(0.7),
+          return GestureDetector(
+            onTap: () {
+              // 点击歌词区域时显示简化的跳转选项
+              _showLyricJumpDialog(context, playerProvider);
+            },
+            child: LyricsReader(
+              model: lyricsModel,
+              position: provider.lyricsPosition,
+              lyricUi: lyricUI,
+              playing: provider.isPlaying,
+              size: Size(double.infinity, MediaQuery.of(context).size.height),
+              emptyBuilder: () => Center(
+                child: Text(
+                  '暂无歌词',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.7),
+                  ),
                 ),
               ),
             ),
@@ -346,6 +330,115 @@ class _MusicScreenState extends State<MusicScreen>
         }
       },
     );
+  }
+
+  // 显示歌词跳转对话框
+  void _showLyricJumpDialog(BuildContext context, PlayerProvider playerProvider) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('跳转到歌词位置'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('点击下方按钮跳转到当前歌词位置'),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.play_arrow,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 40,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      // 跳转到当前歌词位置并开始播放
+                      final currentPosition = playerProvider.lyricsPosition;
+                      final position = Duration(milliseconds: currentPosition);
+                      playerProvider.seek(position);
+                      if (!playerProvider.isPlaying) {
+                        playerProvider.togglePlayPause();
+                      }
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.skip_previous,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      size: 40,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      // 跳转到上一句歌词
+                      _jumpToPreviousLyric(playerProvider);
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.skip_next,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      size: 40,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      // 跳转到下一句歌词
+                      _jumpToNextLyric(playerProvider);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 跳转到上一句歌词
+  void _jumpToPreviousLyric(PlayerProvider playerProvider) {
+    final lyricsModel = playerProvider.lyricsModel;
+    if (lyricsModel != null) {
+      final lyrics = lyricsModel.lyrics;
+      final currentPosition = playerProvider.lyricsPosition;
+      
+      // 找到当前歌词位置的前一句
+      for (int i = lyrics.length - 1; i >= 0; i--) {
+        final startTime = lyrics[i].startTime;
+        if (startTime != null && startTime < currentPosition) {
+          final position = Duration(milliseconds: startTime.toInt());
+          playerProvider.seek(position);
+          break;
+        }
+      }
+    }
+  }
+
+  // 跳转到下一句歌词
+  void _jumpToNextLyric(PlayerProvider playerProvider) {
+    final lyricsModel = playerProvider.lyricsModel;
+    if (lyricsModel != null) {
+      final lyrics = lyricsModel.lyrics;
+      final currentPosition = playerProvider.lyricsPosition;
+      
+      // 找到当前歌词位置的下一句
+      for (int i = 0; i < lyrics.length; i++) {
+        final startTime = lyrics[i].startTime;
+        if (startTime != null && startTime > currentPosition) {
+          final position = Duration(milliseconds: startTime.toInt());
+          playerProvider.seek(position);
+          break;
+        }
+      }
+    }
   }
 
   // 构建歌曲信息
@@ -476,71 +569,7 @@ class _MusicScreenState extends State<MusicScreen>
     }
   }
 
-  // 构建控制按钮
-  Widget _buildControlButtons(PlayerProvider playerProvider) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // 播放列表按钮
-          IconButton(
-            iconSize: 40,
-            onPressed: () {
-              // 显示播放列表BottomSheet
-              _showPlaylistBottomSheet(context, playerProvider);
-            },
-            icon: Icon(
-              Icons.playlist_play,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-
-          // 上一首按钮
-          IconButton(
-            iconSize: 40,
-            onPressed: playerProvider.playPrevious,
-            icon: Icon(
-              Icons.skip_previous,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-
-          // 播放/暂停按钮
-          IconButton(
-            iconSize: 60,
-            onPressed: playerProvider.togglePlayPause,
-            icon: Icon(
-              playerProvider.isPlaying ? Icons.pause : Icons.play_arrow,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-
-          // 下一首按钮
-          IconButton(
-            iconSize: 40,
-            onPressed: playerProvider.playNext,
-            icon: Icon(
-              Icons.skip_next,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-
-          // 更多选项按钮
-          IconButton(
-            iconSize: 40,
-            onPressed: () {
-              // 可以在这里添加更多选项
-            },
-            icon: Icon(
-              Icons.more_horiz,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  
 
   // 显示播放列表BottomSheet
   void _showPlaylistBottomSheet(
@@ -567,6 +596,69 @@ class _MusicScreenState extends State<MusicScreen>
     );
   }
 
+  // 构建简化的控制按钮（仅用于主音乐播放界面）
+  Widget _buildSimpleControlButtons(PlayerProvider playerProvider) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // 播放列表按钮
+          IconButton(
+            iconSize: 40,
+            onPressed: () {
+              _showPlaylistBottomSheet(context, playerProvider);
+            },
+            icon: Icon(
+              Icons.playlist_play,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+
+          // 喜欢按钮
+          IconButton(
+            iconSize: 40,
+            onPressed: () {
+              final currentSong = playerProvider.currentSong;
+              if (currentSong != null) {
+                final wasFavorite = playerProvider.isFavorite(currentSong.id);
+                playerProvider.toggleFavorite(currentSong.id);
+                
+                // 显示提示信息
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      wasFavorite 
+                          ? '已从"我的喜欢"中移除' 
+                          : '已添加到"我的喜欢"',
+                    ),
+                    duration: const Duration(seconds: 2),
+                    action: wasFavorite ? null : SnackBarAction(
+                      label: '查看歌单',
+                      onPressed: () {
+                        Navigator.popUntil(context, (route) => route.isFirst);
+                      },
+                    ),
+                  ),
+                );
+              }
+            },
+            icon: Icon(
+              Icons.favorite,
+              color: () {
+                final currentSong = playerProvider.currentSong;
+                return currentSong != null && playerProvider.isFavorite(currentSong.id)
+                    ? Colors.red
+                    : Theme.of(context).colorScheme.onSurface;
+              }(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // 格式化时间显示
   String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes;
@@ -575,37 +667,7 @@ class _MusicScreenState extends State<MusicScreen>
   }
 }
 
-// 带动画效果的播放/暂停按钮
-class _PlayPauseButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final playerProvider = Provider.of<PlayerProvider>(context);
 
-    return Container(
-      width: 70,
-      height: 70,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary,
-        borderRadius: BorderRadius.circular(35),
-      ),
-      child: IconButton(
-        iconSize: 40,
-        onPressed: playerProvider.togglePlayPause,
-        icon: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          transitionBuilder: (child, animation) {
-            return ScaleTransition(scale: animation, child: child);
-          },
-          child: Icon(
-            playerProvider.isPlaying ? Icons.pause : Icons.play_arrow,
-            key: ValueKey(playerProvider.isPlaying),
-            color: Theme.of(context).colorScheme.onPrimary,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // 播放列表BottomSheet组件
 class PlaylistBottomSheet extends StatelessWidget {

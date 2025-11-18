@@ -3,7 +3,6 @@ import 'package:just_audio/just_audio.dart';
 import '../models/song.dart';
 import '../services/lyrics_service.dart';
 import 'package:flutter_lyric/lyrics_reader_model.dart';
-import 'package:flutter_lyric/lyrics_reader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PlayerProvider with ChangeNotifier {
@@ -34,8 +33,15 @@ class PlayerProvider with ChangeNotifier {
   // 播放位置（毫秒）
   int _playbackPosition = 0;
 
+  // 用户信息
+  String _userName = '用户';
+  String _userAvatarPath = '';
+
   // SharedPreferences实例
   late SharedPreferences _prefs;
+
+  // 喜欢的歌曲集合
+  Set<String> _favoriteSongs = {};
 
   // 构造函数
   PlayerProvider() {
@@ -103,6 +109,8 @@ class PlayerProvider with ChangeNotifier {
   // 初始化SharedPreferences
   Future<void> _initializePreferences() async {
     _prefs = await SharedPreferences.getInstance();
+    await _loadFavoriteSongs();
+    await _loadUserInfo();
   }
 
   // 保存播放状态
@@ -202,6 +210,15 @@ class PlayerProvider with ChangeNotifier {
 
   // 获取播放位置
   int get playbackPosition => _playbackPosition;
+
+  // 检查歌曲是否喜欢
+  bool isFavorite(String songId) => _favoriteSongs.contains(songId);
+  
+  Set<String> get favoriteSongs => _favoriteSongs;
+
+  // 获取用户信息
+  String get userName => _userName;
+  String get userAvatarPath => _userAvatarPath;
 
   // 设置播放列表
   void setPlaylist(List<Song> songs) {
@@ -345,7 +362,61 @@ class PlayerProvider with ChangeNotifier {
   // 切换夜间模式
   void toggleDarkMode() {
     _isDarkMode = !_isDarkMode;
+    _saveSettings();
     notifyListeners();
+  }
+
+  // 保存设置到SharedPreferences
+  Future<void> _saveSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_dark_mode', _isDarkMode);
+    } catch (e) {
+      print('Failed to save settings: $e');
+    }
+  }
+
+  // 设置用户信息
+  void setUserInfo({String? userName, String? avatarPath}) {
+    if (userName != null) _userName = userName;
+    if (avatarPath != null) _userAvatarPath = avatarPath;
+    _saveUserInfo();
+    notifyListeners();
+  }
+
+  // 切换歌曲喜欢状态
+  void toggleFavorite(String songId) {
+    if (_favoriteSongs.contains(songId)) {
+      _favoriteSongs.remove(songId);
+    } else {
+      _favoriteSongs.add(songId);
+    }
+    _saveFavoriteSongs();
+    notifyListeners();
+  }
+
+  // 保存喜欢的歌曲到SharedPreferences
+  Future<void> _saveFavoriteSongs() async {
+    try {
+      await _prefs.setStringList('favorite_songs', _favoriteSongs.toList());
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to save favorite songs: $e');
+      }
+    }
+  }
+
+  // 从SharedPreferences加载喜欢的歌曲
+  Future<void> _loadFavoriteSongs() async {
+    try {
+      final favoriteSongs = _prefs.getStringList('favorite_songs') ?? [];
+      _favoriteSongs = favoriteSongs.toSet();
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to load favorite songs: $e');
+      }
+    }
   }
 
   // 跳转到指定位置
@@ -355,6 +426,28 @@ class PlayerProvider with ChangeNotifier {
     _playbackPosition = position.inMilliseconds;
     // 保存播放状态
     _savePlaybackState();
+  }
+
+  // 保存用户信息到SharedPreferences
+  Future<void> _saveUserInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_name', _userName);
+      await prefs.setString('user_avatar_path', _userAvatarPath);
+    } catch (e) {
+      print('Failed to save user info: $e');
+    }
+  }
+
+  // 从SharedPreferences加载用户信息
+  Future<void> _loadUserInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _userName = prefs.getString('user_name') ?? '用户';
+      _userAvatarPath = prefs.getString('user_avatar_path') ?? '';
+    } catch (e) {
+      print('Failed to load user info: $e');
+    }
   }
 
   // 释放资源
