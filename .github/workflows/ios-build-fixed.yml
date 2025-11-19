@@ -36,7 +36,10 @@ jobs:
         # 复制 iOS 项目文件，注意它们在 ios/ 子目录下
         cp -r musicplayer_ios/ios/Runner.xcodeproj musicplayer/
         cp -r musicplayer_ios/ios/Runner musicplayer/
-        cp musicplayer_ios/ios/Podfile musicplayer/
+        cp -r musicplayer_ios/ios/Runner.xcworkspace musicplayer/
+        cp -r musicplayer_ios/ios/Flutter musicplayer/
+        # Podfile 在根目录，不在 ios/ 子目录下
+        cp musicplayer_ios/Podfile musicplayer/
         # 清理临时目录
         rm -rf musicplayer_ios
         
