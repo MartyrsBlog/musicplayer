@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:audiotags/audiotags.dart';
+import 'package:metadata_god/metadata_god.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
 
@@ -13,10 +13,10 @@ void main() {
     
     if (await testAudioFile.exists()) {
       try {
-        final tags = await AudioTags.read(testAudioFile.path);
+        final tags = await MetadataGod.readMetadata(file: testAudioFile.path);
         expect(tags, isNotNull);
         print('Title: ${tags?.title}');
-        print('Artist: ${tags?.trackArtist}');
+        print('Artist: ${tags?.artist}');
         print('Album: ${tags?.album}');
       } catch (e) {
         print('Error reading audio tags: $e');

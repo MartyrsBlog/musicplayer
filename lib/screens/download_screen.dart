@@ -190,11 +190,8 @@ class _DownloadScreenState extends State<DownloadScreen> {
     final isDarkMode = themeProvider.isDarkMode;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('音乐下载'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
-      body: Column(
+      body: SafeArea(
+        child: Column(
         children: [
           // 搜索区域 - 使用Expanded包装
           Expanded(
@@ -322,6 +319,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
                   ),
           ),
         ],
+      ),
       ),
     );
   }
