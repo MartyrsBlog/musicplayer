@@ -18,23 +18,12 @@ jobs:
         channel: 'stable'
         architecture: x64
         
-    - name: Clean and Install CocoaPods
+    - name: Generate iOS Files and Install CocoaPods
       run: |
         cd ios
-        rm -rf Pods Podfile.lock
-        flutter clean
-        flutter precache --ios
-        pod install --repo-update
-        
-    - name: Clean Flutter
-      run: flutter clean
-      
-    - name: Get Flutter dependencies
-      run: flutter pub get
-      
-    - name: Build iOS IPA
-      run: |
-        flutter build ios --release --no-codesign
+        rm -rf Pods Podfile.lock Runner.xcodeproj
+        flutter pub get
+        flutter build ios --no-codesign --simulator
         
     - name: Create IPA
       run: |
