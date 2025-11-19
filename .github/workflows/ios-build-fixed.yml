@@ -28,6 +28,8 @@ jobs:
       run: |
         cd ios
         flutter create --platforms=ios --org com.blay musicplayer_ios
+        # 确保目标目录存在
+        mkdir -p musicplayer
         mv musicplayer_ios/Runner.xcodeproj musicplayer/
         mv musicplayer_ios/Runner musicplayer/
         mv musicplayer_ios/Podfile musicplayer/
