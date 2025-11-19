@@ -27,7 +27,11 @@ jobs:
     - name: Create iOS Project
       run: |
         cd ios
-        flutter create --platforms=ios --org com.blay musicplayer
+        flutter create --platforms=ios --org com.blay musicplayer_ios
+        mv musicplayer_ios/Runner.xcodeproj musicplayer/
+        mv musicplayer_ios/Runner musicplayer/
+        mv musicplayer_ios/Podfile musicplayer/
+        rmdir musicplayer_ios
         
     - name: Copy Source Files
       run: |
@@ -51,6 +55,8 @@ jobs:
     - name: Install CocoaPods
       run: |
         cd ios/musicplayer
+        # 更新 Podfile 以指定项目路径
+        echo "project 'Runner.xcodeproj'" >> Podfile
         pod install
         
     - name: Build iOS App
