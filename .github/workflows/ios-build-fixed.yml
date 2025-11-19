@@ -32,7 +32,13 @@ jobs:
     - name: Copy Source Files
       run: |
         # 复制源代码到新项目
-        cp -r ../lib ../test ../web ../assets ../pubspec.yaml ../.dart_tool/ ../analysis_options.yaml ios/musicplayer/
+        cp -r ../lib ios/musicplayer/
+        cp -r ../assets ios/musicplayer/
+        cp ../pubspec.yaml ios/musicplayer/
+        if [ -d "../test" ]; then cp -r ../test ios/musicplayer/; fi
+        if [ -d "../web" ]; then cp -r ../web ios/musicplayer/; fi
+        if [ -d "../.dart_tool" ]; then cp -r ../.dart_tool/ ios/musicplayer/; fi
+        if [ -f "../analysis_options.yaml" ]; then cp ../analysis_options.yaml ios/musicplayer/; fi
         
     - name: Install CocoaPods
       run: |
