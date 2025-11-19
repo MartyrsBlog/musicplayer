@@ -9,11 +9,6 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-end
-
-post_install do |installer|
-  installer.pods_project.targets.each do |target|
-    flutter_post_install(installer, target)
-  end
+  # Flutter integration will be handled by the Flutter tool
+  # No need for manual pod installation
 end

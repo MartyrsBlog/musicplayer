@@ -18,10 +18,11 @@ jobs:
         channel: 'stable'
         architecture: x64
         
-    - name: Install CocoaPods
+    - name: Install CocoaPods via Flutter
       run: |
+        flutter precache --ios
         cd ios
-        pod install
+        pod install --repo-update
         
     - name: Clean Flutter
       run: flutter clean
