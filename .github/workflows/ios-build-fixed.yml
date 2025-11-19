@@ -38,8 +38,8 @@ jobs:
         cp -r musicplayer_ios/ios/Runner musicplayer/
         cp -r musicplayer_ios/ios/Runner.xcworkspace musicplayer/
         cp -r musicplayer_ios/ios/Flutter musicplayer/
-        # Podfile 在根目录，不在 ios/ 子目录下
-        cp musicplayer_ios/Podfile musicplayer/
+        # Podfile 也在 ios/ 子目录下
+        cp musicplayer_ios/ios/Podfile musicplayer/
         # 清理临时目录
         rm -rf musicplayer_ios
         
