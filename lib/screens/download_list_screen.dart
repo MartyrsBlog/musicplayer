@@ -26,8 +26,9 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
 
   void _loadDownloadedSongs() async {
     try {
-      final downloadDir = await MusicDownloadService.getDownloadDirectory();
-      final files = await downloadDir.list().toList();
+      // 从媒体下载目录扫描歌曲
+      final mediaDir = await MusicDownloadService.getMediaDownloadDirectory();
+      final files = await mediaDir.list().toList();
       
       List<Song> songs = [];
       for (final file in files) {
@@ -50,9 +51,6 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
         setState(() {
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('加载下载列表失败: $e')),
-        );
       }
     }
   }

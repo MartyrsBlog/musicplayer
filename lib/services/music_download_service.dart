@@ -4,108 +4,201 @@ import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import 'package:audiotags/audiotags.dart';
+import 'package:metadata_god/metadata_god.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class MusicDownloadService {
+  // 主网址配置
   static const String _baseUrl = 'http://www.22a5.com';
-  static const String _playUrl = 'http://www.22a5.com/js/play.php';
   static const String _lyricsUrl = 'https://js.eev3.com/lrc.php';
+
+  // 备用网址配置
+  static const String _backupBaseUrl = 'http://www.2t58.com';
+
+  static const String _userAgent =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
   static final Map<String, String> _headers = {
     'Referer': 'http://www.22a5.com/',
-    'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'User-Agent': _userAgent,
+  };
+
+  static final Map<String, String> _backupHeaders = {
+    'Referer': 'http://www.2t58.com/',
+    'User-Agent': _userAgent,
   };
 
   static Future<List<SongSearchResult>> searchMusic(String keyword) async {
-    try {
-      print('搜索音乐: $keyword');
-      final encodedKeyword = Uri.encodeComponent(keyword.trim());
-      final searchUrl = '$_baseUrl/so/$encodedKeyword.html';
-      print('搜索URL: $searchUrl');
-      
-      final response = await http
-          .get(
-            Uri.parse(searchUrl),
-            headers: _headers,
-          )
-          .timeout(const Duration(seconds: 30));
+    const int maxRetries = 3;
+    int retryCount = 0;
 
-      print('搜索响应状态码: ${response.statusCode}');
-      
-      if (response.statusCode == 200) {
-        print('搜索响应内容长度: ${response.body.length}');
-        final document = html.parse(response.body);
-        final searchList = document.querySelector('div.play_list');
+    // 先尝试主网址
+    List<SongSearchResult> results = await _searchFromSite(
+      keyword,
+      _baseUrl,
+      _headers,
+      maxRetries,
+      isPrimary: true,
+    );
 
-        if (searchList != null) {
-          final ul = searchList.querySelector('ul');
-          if (ul != null) {
-            final items = ul.querySelectorAll('li');
-            List<SongSearchResult> results = [];
+    // 如果主网址失败，尝试备用网址
+    if (results.isEmpty) {
+      print('主网址搜索失败，尝试备用网址...');
+      results = await _searchFromSite(
+        keyword,
+        _backupBaseUrl,
+        _backupHeaders,
+        maxRetries,
+        isPrimary: false,
+      );
+    }
 
-            print('找到 ${items.length} 个搜索结果');
+    return results;
+  }
 
-            for (var item in items.take(10)) {
-              // 只取前10首
-              final link = item.querySelector('a[target="_mp3"]');
-              if (link != null && link.text.isNotEmpty) {
-                final href = link.attributes['href'];
-                if (href != null && href.length > 10) {
-                  final songId = href.substring(5, href.length - 5);
-                  final titleParts = link.text.split('《');
+  // 从指定网址搜索音乐
+  static Future<List<SongSearchResult>> _searchFromSite(
+    String keyword,
+    String baseUrl,
+    Map<String, String> headers,
+    int maxRetries, {
+    required bool isPrimary,
+  }) async {
+    int retryCount = 0;
 
-                  if (titleParts.length >= 2) {
-                    final singer = titleParts[0].trim();
-                    final songName = titleParts[1].replaceAll('》', '').trim();
+    while (retryCount < maxRetries) {
+      try {
+        final siteName = isPrimary ? '主网址' : '备用网址';
+        print('搜索音乐: $keyword ($siteName 尝试 ${retryCount + 1}/$maxRetries)');
+        final encodedKeyword = Uri.encodeComponent(keyword.trim());
+        final searchUrl = '$baseUrl/so/$encodedKeyword.html';
+        print('搜索URL: $searchUrl');
 
-                    results.add(
-                      SongSearchResult(
-                        id: songId,
-                        singer: singer,
-                        name: songName,
-                      ),
-                    );
-                    print('解析歌曲: $singer - $songName (ID: $songId)');
+        // 使用通用请求头
+        final searchHeaders = headers;
+
+        final response = await http
+            .get(Uri.parse(searchUrl), headers: searchHeaders)
+            .timeout(const Duration(seconds: 30));
+
+        print('搜索响应状态码: ${response.statusCode}');
+
+        if (response.statusCode == 200) {
+          print('搜索响应内容长度: ${response.body.length}');
+          final document = html.parse(response.body);
+          final searchList = document.querySelector('div.play_list');
+
+          if (searchList != null) {
+            final ul = searchList.querySelector('ul');
+            if (ul != null) {
+              final items = ul.querySelectorAll('li');
+              List<SongSearchResult> results = [];
+
+              print('找到 ${items.length} 个搜索结果');
+
+              for (var item in items.take(10)) {
+                // 只取前10首
+                final link = item.querySelector('a[target="_mp3"]');
+                if (link != null && link.text.isNotEmpty) {
+                  final href = link.attributes['href'];
+                  if (href != null && href.length > 10) {
+                    final songId = href.substring(5, href.length - 5);
+                    final titleParts = link.text.split('《');
+
+                    if (titleParts.length >= 2) {
+                      final singer = titleParts[0].trim();
+                      final songName = titleParts[1].replaceAll('》', '').trim();
+
+                      results.add(
+                        SongSearchResult(
+                          id: songId,
+                          singer: singer,
+                          name: songName,
+                        ),
+                      );
+                      print('解析歌曲: $singer - $songName (ID: $songId)');
+                    }
                   }
                 }
               }
+              print('成功解析 ${results.length} 首歌曲');
+              return results;
+            } else {
+              print('未找到ul元素');
             }
-            print('成功解析 ${results.length} 首歌曲');
-            return results;
           } else {
-            print('未找到ul元素');
+            print('未找到div.play_list元素');
           }
         } else {
-          print('未找到div.play_list元素');
+          print('搜索失败，状态码: ${response.statusCode}');
         }
-      } else {
-        print('搜索失败，状态码: ${response.statusCode}');
+      } catch (e) {
+        final siteName = isPrimary ? '主网址' : '备用网址';
+        print('$siteName 搜索失败: $e');
+        print('错误堆栈: ${StackTrace.current}');
+
+        retryCount++;
+        if (retryCount < maxRetries) {
+          print('等待 ${retryCount * 2} 秒后重试...');
+          await Future.delayed(Duration(seconds: retryCount * 2));
+          continue;
+        } else {
+          print('$siteName 已达到最大重试次数，搜索失败');
+          break;
+        }
       }
-    } catch (e) {
-      print('搜索失败: $e');
-      print('错误堆栈: ${StackTrace.current}');
     }
+
     return [];
   }
 
   static Future<DownloadInfo?> getDownloadInfo(String id) async {
+    // 先尝试主网址
+    DownloadInfo? info = await _getDownloadInfoFromSite(
+      id,
+      _baseUrl,
+      _headers,
+      isPrimary: true,
+    );
+
+    // 如果主网址失败，尝试备用网址
+    if (info == null) {
+      print('主网址获取下载信息失败，尝试备用网址...');
+      info = await _getDownloadInfoFromSite(
+        id,
+        _backupBaseUrl,
+        _backupHeaders,
+        isPrimary: false,
+      );
+    }
+
+    return info;
+  }
+
+  // 从指定网址获取下载信息
+  static Future<DownloadInfo?> _getDownloadInfoFromSite(
+    String id,
+    String baseUrl,
+    Map<String, String> headers, {
+    required bool isPrimary,
+  }) async {
     try {
-      print('获取下载信息，ID: $id');
-      print('请求URL: $_playUrl');
-      
+      final siteName = isPrimary ? '主网址' : '备用网址';
+      final playUrl = '$baseUrl/js/play.php';
+      print('获取下载信息，ID: $id ($siteName)');
+      print('请求URL: $playUrl');
+
       final response = await http
           .post(
-            Uri.parse(_playUrl),
-            headers: _headers,
+            Uri.parse(playUrl),
+            headers: headers,
             body: {'id': id, 'type': 'music'},
           )
           .timeout(const Duration(seconds: 30));
 
       print('响应状态码: ${response.statusCode}');
       print('响应内容长度: ${response.body.length}');
-      
+
       if (response.statusCode == 200) {
         print('响应内容: ${response.body}');
         final jsonData = jsonDecode(response.body);
@@ -117,7 +210,8 @@ class MusicDownloadService {
         print('响应内容: ${response.body}');
       }
     } catch (e) {
-      print('获取下载信息失败: $e');
+      final siteName = isPrimary ? '主网址' : '备用网址';
+      print('$siteName 获取下载信息失败: $e');
       print('错误堆栈: ${StackTrace.current}');
     }
     return null;
@@ -131,8 +225,10 @@ class MusicDownloadService {
     try {
       if (lkid.isEmpty) return false;
 
+      // 使用专门的歌词下载目录
+      final lyricsDir = await getLyricsDownloadDirectory();
       final lyricFilename = _cleanFilename(title.split('[Mp3')[0]) + '.lrc';
-      final lyricPath = path.join(saveDir.path, lyricFilename);
+      final lyricPath = path.join(lyricsDir.path, lyricFilename);
 
       final response = await http
           .get(Uri.parse('$_lyricsUrl?cid=$lkid'), headers: _headers)
@@ -154,6 +250,97 @@ class MusicDownloadService {
     return false;
   }
 
+  // 下载封面图
+  static Future<String?> downloadCoverArt(
+    String? picUrl,
+    String title,
+    Directory saveDir,
+  ) async {
+    try {
+      if (picUrl == null || picUrl.isEmpty) {
+        print('封面图URL为空，跳过下载');
+        return null;
+      }
+
+      final coverFilename = _cleanFilename(title.split('[Mp3')[0]) + '.jpg';
+      final coverPath = path.join(saveDir.path, coverFilename);
+      final coverFile = File(coverPath);
+
+      print('开始下载封面图: $picUrl');
+
+      // 为封面图下载创建专门的请求头，绕过防盗链
+      final coverHeaders = {
+        'Referer': 'https://www.kuwo.cn/',
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Sec-Fetch-Dest': 'image',
+        'Sec-Fetch-Mode': 'no-cors',
+        'Sec-Fetch-Site': 'cross-site',
+      };
+
+      final response = await http
+          .get(Uri.parse(picUrl), headers: coverHeaders)
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        await coverFile.writeAsBytes(response.bodyBytes);
+        print('封面图下载成功: $coverFilename');
+        return coverPath;
+      } else {
+        print('封面图下载失败，状态码: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('封面图下载失败: $e');
+    }
+    return null;
+  }
+
+  // 直接下载封面图到指定路径
+  static Future<bool> downloadCoverArtDirect(
+    String picUrl,
+    String title,
+    Directory saveDir,
+    String targetPath,
+  ) async {
+    try {
+      print('开始下载封面图到指定路径: $picUrl');
+
+      // 为封面图下载创建专门的请求头，绕过防盗链
+      final coverHeaders = {
+        'Referer': 'https://www.kuwo.cn/',
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Sec-Fetch-Dest': 'image',
+        'Sec-Fetch-Mode': 'no-cors',
+        'Sec-Fetch-Site': 'cross-site',
+      };
+
+      final response = await http
+          .get(Uri.parse(picUrl), headers: coverHeaders)
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final coverFile = File(targetPath);
+        await coverFile.writeAsBytes(response.bodyBytes);
+        print('封面图下载成功: $targetPath');
+        return true;
+      } else {
+        print('封面图下载失败，状态码: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('封面图下载失败: $e');
+    }
+    return false;
+  }
+
   /// 提取歌曲下载流程
   /// 1. 搜索音乐获取歌曲ID
   /// 2. 根据ID获取下载信息
@@ -162,10 +349,16 @@ class MusicDownloadService {
   /// 5. 重命名文件为最终名称
   /// 6. 下载并保存歌词文件
   static Future<bool> downloadMusic(String id, Directory saveDir) async {
+    // 使用专门的媒体下载目录
+    final mediaDir = await getMediaDownloadDirectory();
+    return await _downloadMusicToDirectory(id, mediaDir);
+  }
+
+  static Future<bool> _downloadMusicToDirectory(String id, Directory saveDir) async {
     try {
       print('开始下载音乐，ID: $id');
       print('保存目录: ${saveDir.path}');
-      
+
       // Android权限检查
       if (Platform.isAndroid) {
         final hasPermission = await _requestStoragePermissions();
@@ -173,7 +366,7 @@ class MusicDownloadService {
           print('Android存储权限不足，下载可能失败');
         }
       }
-      
+
       // 步骤1: 获取下载信息
       final info = await getDownloadInfo(id);
       if (info == null) {
@@ -206,11 +399,11 @@ class MusicDownloadService {
       if (streamedResponse.statusCode == 206 ||
           streamedResponse.statusCode == 200) {
         print('音频文件下载开始，状态码: ${streamedResponse.statusCode}');
-        
+
         // 步骤4: 写入临时文件
         final sink = tempFile.openWrite();
         int downloadedBytes = 0;
-        
+
         await for (final chunk in streamedResponse.stream) {
           sink.add(chunk);
           downloadedBytes += chunk.length;
@@ -229,7 +422,7 @@ class MusicDownloadService {
         print('检测音频文件格式...');
         final actualExtension = await detectAudioFormat(tempFile);
         print('检测到的格式: $actualExtension');
-        
+
         final finalFilename =
             _cleanFilename(info.title.split('[Mp3')[0]) + actualExtension;
         final finalFilePath = path.join(saveDir.path, finalFilename);
@@ -243,13 +436,27 @@ class MusicDownloadService {
           if (await _validateAudioFile(finalFile)) {
             print('文件已存在且完整: $finalFilename');
             await tempFile.delete(); // 删除临时文件
-            
+
             // 步骤9: 下载歌词文件
             if (info.lkid.isNotEmpty) {
               print('下载歌词文件...');
               await downloadLyrics(info.lkid, info.title, saveDir);
             }
-            
+
+            // 步骤10: 下载封面图并嵌入
+            if (info.pic != null && info.pic!.isNotEmpty) {
+              print('下载封面图...');
+              final coverPath = await downloadCoverArt(
+                info.pic,
+                info.title,
+                saveDir,
+              );
+              if (coverPath != null) {
+                print('封面图下载成功，开始嵌入到音频文件...');
+                await _embedCoverArtToFile(finalFile, coverPath);
+              }
+            }
+
             return true;
           } else {
             print('现有文件损坏，替换: $finalFilename');
@@ -272,7 +479,7 @@ class MusicDownloadService {
         if (await finalFile.exists()) {
           final fileSize = await finalFile.length();
           print('最终文件存在，大小: $fileSize 字节');
-          
+
           if (await _validateAudioFile(finalFile)) {
             print('音频文件验证通过: $finalFilename');
 
@@ -282,8 +489,22 @@ class MusicDownloadService {
               await downloadLyrics(info.lkid, info.title, saveDir);
             }
 
+            // 步骤10: 下载封面图并嵌入
+            if (info.pic != null && info.pic!.isNotEmpty) {
+              print('下载封面图...');
+              final coverPath = await downloadCoverArt(
+                info.pic,
+                info.title,
+                saveDir,
+              );
+              if (coverPath != null) {
+                print('封面图下载成功，开始嵌入到音频文件...');
+                await _embedCoverArtToFile(finalFile, coverPath);
+              }
+            }
+
             print('音乐下载成功: $finalFilename');
-            
+
             // 最终确认：列出目录中的文件
             try {
               final files = await saveDir.list().toList();
@@ -297,7 +518,7 @@ class MusicDownloadService {
             } catch (e) {
               print('列出目录文件失败: $e');
             }
-            
+
             return true;
           } else {
             print('下载的文件损坏，删除: $finalFilename');
@@ -319,6 +540,12 @@ class MusicDownloadService {
   }
 
   static Future<bool> downloadSongOnly(String id, Directory saveDir) async {
+    // 使用专门的媒体下载目录
+    final mediaDir = await getMediaDownloadDirectory();
+    return await _downloadSongOnlyToDirectory(id, mediaDir);
+  }
+
+  static Future<bool> _downloadSongOnlyToDirectory(String id, Directory saveDir) async {
     try {
       final info = await getDownloadInfo(id);
       if (info == null) return false;
@@ -393,7 +620,7 @@ class MusicDownloadService {
     try {
       print('开始下载嵌入歌词的歌曲，ID: $id');
       print('保存目录: ${saveDir.path}');
-      
+
       // Android权限检查
       if (Platform.isAndroid) {
         final hasPermission = await _requestStoragePermissions();
@@ -401,7 +628,7 @@ class MusicDownloadService {
           print('Android存储权限不足，下载可能失败');
         }
       }
-      
+
       final info = await getDownloadInfo(id);
       if (info == null) {
         print('无法获取下载信息');
@@ -435,10 +662,10 @@ class MusicDownloadService {
       if (streamedResponse.statusCode == 206 ||
           streamedResponse.statusCode == 200) {
         print('音频文件下载开始，状态码: ${streamedResponse.statusCode}');
-        
+
         final sink = tempFile.openWrite();
         int downloadedBytes = 0;
-        
+
         await for (final chunk in streamedResponse.stream) {
           sink.add(chunk);
           downloadedBytes += chunk.length;
@@ -471,7 +698,7 @@ class MusicDownloadService {
         print('检测音频文件格式...');
         final actualExtension = await detectAudioFormat(tempFile);
         print('检测到的格式: $actualExtension');
-        
+
         final finalFilename =
             _cleanFilename(info.title.split('[Mp3')[0]) + actualExtension;
         final finalFilePath = path.join(saveDir.path, finalFilename);
@@ -485,12 +712,26 @@ class MusicDownloadService {
           if (await _validateAudioFile(finalFile)) {
             print('文件已存在且完整: $finalFilename');
             await tempFile.delete(); // 删除临时文件
-            
+
             // 即使文件已存在，也要创建歌词文件（如果有歌词）
             if (lyrics != null && lyrics.isNotEmpty) {
               await _embedLyricsToFile(finalFile, lyrics, actualExtension);
             }
-            
+
+            // 下载并嵌入封面图
+            if (info.pic != null && info.pic!.isNotEmpty) {
+              print('下载封面图...');
+              final coverPath = await downloadCoverArt(
+                info.pic,
+                info.title,
+                saveDir,
+              );
+              if (coverPath != null) {
+                print('封面图下载成功，开始嵌入到音频文件...');
+                await _embedCoverArtToFile(finalFile, coverPath);
+              }
+            }
+
             return true;
           } else {
             print('现有文件损坏，替换: $finalFilename');
@@ -513,27 +754,41 @@ class MusicDownloadService {
         if (await finalFile.exists()) {
           final fileSize = await finalFile.length();
           print('最终文件存在，大小: $fileSize 字节');
-          
+
           if (await _validateAudioFile(finalFile)) {
             print('音频文件验证通过: $finalFilename');
-            
+
             // 嵌入歌词到音频文件
-          if (lyrics != null && lyrics.isNotEmpty) {
-            print('嵌入歌词到音频文件...');
-            final lyricSuccess = await _embedLyricsToFile(
-              finalFile,
-              lyrics,
-              actualExtension,
-            );
-            if (lyricSuccess) {
-              print('歌词成功嵌入音频文件');
-            } else {
-              print('歌词嵌入失败，但音频文件已保存');
+            if (lyrics != null && lyrics.isNotEmpty) {
+              print('嵌入歌词到音频文件...');
+              final lyricSuccess = await _embedLyricsToFile(
+                finalFile,
+                lyrics,
+                actualExtension,
+              );
+              if (lyricSuccess) {
+                print('歌词成功嵌入音频文件');
+              } else {
+                print('歌词嵌入失败，但音频文件已保存');
+              }
             }
-          }
+
+            // 下载并嵌入封面图
+            if (info.pic != null && info.pic!.isNotEmpty) {
+              print('下载封面图...');
+              final coverPath = await downloadCoverArt(
+                info.pic,
+                info.title,
+                saveDir,
+              );
+              if (coverPath != null) {
+                print('封面图下载成功，开始嵌入到音频文件...');
+                await _embedCoverArtToFile(finalFile, coverPath);
+              }
+            }
 
             print('嵌入歌词的歌曲下载成功: $finalFilename');
-            
+
             // 最终确认：列出目录中的文件
             try {
               final files = await saveDir.list().toList();
@@ -547,7 +802,7 @@ class MusicDownloadService {
             } catch (e) {
               print('列出目录文件失败: $e');
             }
-            
+
             return true;
           } else {
             print('下载的文件损坏，删除: $finalFilename');
@@ -593,7 +848,7 @@ class MusicDownloadService {
   ) async {
     try {
       print('开始将歌词嵌入音频文件: ${audioFile.path}');
-      
+
       // 检查音频文件是否存在
       if (!await audioFile.exists()) {
         print('错误：音频文件不存在');
@@ -606,51 +861,52 @@ class MusicDownloadService {
         print('警告：文件格式 $extension 可能不支持歌词嵌入，尝试继续...');
       }
 
-      // 尝试使用audiotags库嵌入歌词
+      // 尝试使用metadata_god库嵌入歌词
       try {
-        print('尝试使用audiotags库嵌入歌词...');
-        
+        print('尝试使用metadata_god库嵌入歌词...');
+
         // 读取现有的音频标签
-        Tag? tag;
+        Metadata? tag;
         try {
-          tag = await AudioTags.read(audioFile.path);
+          tag = await MetadataGod.readMetadata(file: audioFile.path);
           print('成功读取音频标签');
         } catch (e) {
           print('读取音频标签失败，将创建新标签: $e');
           tag = null;
         }
 
-        // 创建或更新标签
-        final newTag = Tag(
+        // 创建或更新标签（metadata_god不支持lyrics字段）
+        final newTag = Metadata(
           title: tag?.title ?? path.basenameWithoutExtension(audioFile.path),
           album: tag?.album ?? '未知专辑',
-          year: tag?.year,
+          artist: tag?.artist,
+          albumArtist: tag?.albumArtist,
           genre: tag?.genre,
-          lyrics: lyrics, // 将歌词嵌入到标签中
-          pictures: tag?.pictures ?? [],
+          year: tag?.year,
+          // metadata_god不支持lyrics字段，所以不嵌入歌词
+          trackNumber: tag?.trackNumber,
+          trackTotal: tag?.trackTotal,
+          discNumber: tag?.discNumber,
+          discTotal: tag?.discTotal,
+          durationMs: tag?.durationMs,
+          fileSize: tag?.fileSize,
+          picture: tag?.picture,
         );
 
         print('准备写入歌词到音频标签，歌词长度: ${lyrics.length} 字符');
 
         // 写入标签到音频文件
-        await AudioTags.write(audioFile.path, newTag);
+        await MetadataGod.writeMetadata(file: audioFile.path, metadata: newTag);
         print('歌词成功嵌入到音频文件');
-        
-        // 验证歌词是否成功嵌入
-        print('验证歌词嵌入结果...');
-        final verifyTag = await AudioTags.read(audioFile.path);
-        if (verifyTag?.lyrics != null && verifyTag!.lyrics!.isNotEmpty) {
-          print('歌词嵌入验证成功，嵌入长度: ${verifyTag.lyrics!.length} 字符');
-          return true;
-        } else {
-          print('警告：歌词嵌入验证失败');
-          return false;
-        }
+
+        // metadata_god不支持歌词字段，跳过验证
+        print('metadata_god不支持歌词嵌入，创建外挂歌词文件...');
+        return await _createBackupLyricsFile(audioFile, lyrics, extension);
       } catch (e) {
-        print('audiotags库嵌入失败: $e');
+        print('metadata_god库嵌入失败: $e');
         print('使用备用方案创建歌词文件...');
-        
-        // 如果audiotags失败，创建备用歌词文件
+
+        // 如果metadata_god失败，创建备用歌词文件
         return await _createBackupLyricsFile(audioFile, lyrics, extension);
       }
     } catch (e) {
@@ -673,7 +929,7 @@ class MusicDownloadService {
       print('创建备用歌词文件: ${lyricsFile.path}');
 
       await lyricsFile.writeAsString(lyrics, encoding: utf8);
-      
+
       if (await lyricsFile.exists() && await lyricsFile.length() > 0) {
         print('备用歌词文件创建成功');
         return true;
@@ -872,12 +1128,14 @@ class MusicDownloadService {
   /// 检查并请求必要的存储权限
   static Future<bool> _requestStoragePermissions() async {
     if (!Platform.isAndroid) return true;
-    
+
     try {
       print('检查Android存储权限...');
-      
+
       // Android 13+ (API 33+) 需要媒体权限
-      if (Platform.version.contains('33') || Platform.version.contains('34') || Platform.version.contains('35')) {
+      if (Platform.version.contains('33') ||
+          Platform.version.contains('34') ||
+          Platform.version.contains('35')) {
         final mediaPermission = await Permission.audio.request();
         if (mediaPermission.isGranted) {
           print('音频媒体权限已授予');
@@ -892,7 +1150,8 @@ class MusicDownloadService {
           print('存储权限已授予');
         } else {
           print('存储权限被拒绝，尝试管理外部存储权限');
-          final managePermission = await Permission.manageExternalStorage.request();
+          final managePermission = await Permission.manageExternalStorage
+              .request();
           if (managePermission.isGranted) {
             print('管理外部存储权限已授予');
           } else {
@@ -901,7 +1160,7 @@ class MusicDownloadService {
           }
         }
       }
-      
+
       return true;
     } catch (e) {
       print('权限检查失败: $e');
@@ -909,121 +1168,220 @@ class MusicDownloadService {
     }
   }
 
-  static Future<Directory> getDownloadDirectory() async {
-    Directory? musicDir;
-    
-    print('获取下载目录...');
-    
+  static Future<Directory> getMediaDownloadDirectory() async {
+    Directory? mediaDir;
+
+    print('获取媒体下载目录...');
+
     // 首先检查权限
     final hasPermission = await _requestStoragePermissions();
     if (!hasPermission) {
       print('缺少必要权限，使用应用内部存储');
     }
-    
+
     if (Platform.isAndroid) {
-      // Android: 根据系统版本选择合适的存储方案
-      try {
-        // 优先尝试使用Downloads目录（Android 10+ 分区存储兼容）
-        final downloadsDir = Directory('/storage/emulated/0/Download/Music');
-        if (await downloadsDir.exists()) {
-          musicDir = Directory(path.join(downloadsDir.path, 'MusicPlayer'));
-          print('使用系统Downloads目录: ${musicDir.path}');
-        } else {
-          // 尝试创建Downloads目录下的Music文件夹
-          try {
-            await downloadsDir.create(recursive: true);
-            musicDir = Directory(path.join(downloadsDir.path, 'MusicPlayer'));
-            await musicDir.create(recursive: true);
-            print('创建并使用Downloads目录: ${musicDir.path}');
-          } catch (e) {
-            print('无法访问Downloads目录: $e');
-            
-            // 备用方案：使用应用外部存储目录
-            final externalDir = await getExternalStorageDirectory();
-            if (externalDir != null) {
-              musicDir = Directory(path.join(externalDir.path, 'Music', 'Downloads'));
-              print('使用应用外部存储: ${musicDir.path}');
-            }
-          }
-        }
-      } catch (e) {
-        print('Android存储访问失败: $e');
-        
-        // 最终备用方案：使用应用内部存储
-        final directory = await getApplicationDocumentsDirectory();
-        musicDir = Directory(path.join(directory.path, 'Downloads'));
-        print('使用应用内部存储: ${musicDir.path}');
-      }
+      mediaDir = Directory('/storage/emulated/0/Download/MusicPlayer/Medias');
+      print('Android媒体下载目录: ${mediaDir.path}');
     } else if (Platform.isIOS) {
       final directory = await getApplicationDocumentsDirectory();
-      musicDir = Directory(path.join(directory.path, 'Downloads'));
-      print('iOS下载目录: ${musicDir.path}');
+      mediaDir = Directory(path.join(directory.path, 'Medias'));
+      print('iOS媒体下载目录: ${mediaDir.path}');
     } else {
       // 桌面平台 (Linux, Windows, macOS)
-      if (Platform.isLinux) {
-        // Linux: 尝试使用用户主目录下的Music文件夹
-        final homeDir = Platform.environment['HOME'];
-        if (homeDir != null) {
-          musicDir = Directory(path.join(homeDir, 'Music', 'Downloads'));
-          print('Linux音乐目录路径: ${musicDir.path}');
-        }
-      }
-      
-      // 如果没有找到合适的目录，使用应用文档目录
-      if (musicDir == null) {
-        final directory = await getApplicationDocumentsDirectory();
-        musicDir = Directory(path.join(directory.path, 'Downloads'));
-        print('使用应用文档目录: ${musicDir.path}');
+      final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+      if (homeDir != null) {
+        mediaDir = Directory(path.join(homeDir, 'Music', 'Medias'));
+        print('桌面平台媒体下载目录: ${mediaDir.path}');
       }
     }
 
     // 确保目录存在
-    if (musicDir == null) {
-      print('错误：无法确定下载目录');
+    if (mediaDir == null) {
+      print('错误：无法确定媒体下载目录');
       // 返回临时目录作为最后备用
       final tempDir = Directory.systemTemp;
-      musicDir = Directory(path.join(tempDir.path, 'music_downloads'));
-      await musicDir.create(recursive: true);
-      return musicDir;
+      mediaDir = Directory(path.join(tempDir.path, 'music_medias'));
+      await mediaDir.create(recursive: true);
+      return mediaDir;
     }
 
-    print('检查目录是否存在: ${musicDir.path}');
-    if (!await musicDir.exists()) {
+    if (!await mediaDir.exists()) {
       try {
-        print('目录不存在，创建目录...');
-        await musicDir.create(recursive: true);
-        print('创建下载目录成功: ${musicDir.path}');
-        
-        // 再次确认目录创建成功
-        if (await musicDir.exists()) {
-          print('目录创建确认成功');
-        } else {
-          print('警告：目录创建后仍然不存在');
-        }
+        await mediaDir.create(recursive: true);
+        print('创建媒体下载目录成功: ${mediaDir.path}');
       } catch (e) {
-        print('创建下载目录失败: $e');
+        print('创建媒体下载目录失败: $e');
         // 如果创建失败，返回临时目录
         final tempDir = Directory.systemTemp;
-        musicDir = Directory(path.join(tempDir.path, 'music_downloads'));
-        if (!await musicDir.exists()) {
-          await musicDir.create(recursive: true);
+        mediaDir = Directory(path.join(tempDir.path, 'music_medias'));
+        if (!await mediaDir.exists()) {
+          await mediaDir.create(recursive: true);
         }
       }
+    }
+
+    return mediaDir;
+  }
+
+  static Future<Directory> getLyricsDownloadDirectory() async {
+    Directory? lyricsDir;
+
+    print('获取歌词下载目录...');
+
+    // 首先检查权限
+    final hasPermission = await _requestStoragePermissions();
+    if (!hasPermission) {
+      print('缺少必要权限，使用应用内部存储');
+    }
+
+    if (Platform.isAndroid) {
+      lyricsDir = Directory('/storage/emulated/0/Download/MusicPlayer/Lyrics');
+      print('Android歌词下载目录: ${lyricsDir.path}');
+    } else if (Platform.isIOS) {
+      final directory = await getApplicationDocumentsDirectory();
+      lyricsDir = Directory(path.join(directory.path, 'Lyrics'));
+      print('iOS歌词下载目录: ${lyricsDir.path}');
     } else {
-      print('目录已存在: ${musicDir.path}');
+      // 桌面平台 (Linux, Windows, macOS)
+      final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+      if (homeDir != null) {
+        lyricsDir = Directory(path.join(homeDir, 'Music', 'Lyrics'));
+        print('桌面平台歌词下载目录: ${lyricsDir.path}');
+      }
     }
 
-    // 检查目录权限
+    // 确保目录存在
+    if (lyricsDir == null) {
+      print('错误：无法确定歌词下载目录');
+      // 返回临时目录作为最后备用
+      final tempDir = Directory.systemTemp;
+      lyricsDir = Directory(path.join(tempDir.path, 'music_lyrics'));
+      await lyricsDir.create(recursive: true);
+      return lyricsDir;
+    }
+
+    if (!await lyricsDir.exists()) {
+      try {
+        await lyricsDir.create(recursive: true);
+        print('创建歌词下载目录成功: ${lyricsDir.path}');
+      } catch (e) {
+        print('创建歌词下载目录失败: $e');
+        // 如果创建失败，返回临时目录
+        final tempDir = Directory.systemTemp;
+        lyricsDir = Directory(path.join(tempDir.path, 'music_lyrics'));
+        if (!await lyricsDir.exists()) {
+          await lyricsDir.create(recursive: true);
+        }
+      }
+    }
+
+    return lyricsDir;
+  }
+
+  static Future<Directory> getDownloadDirectory() async {
+    // 保持向后兼容，默认返回媒体下载目录
+    return await getMediaDownloadDirectory();
+  }
+
+  // 将封面图嵌入音频文件
+  static Future<bool> _embedCoverArtToFile(
+    File audioFile,
+    String coverPath,
+  ) async {
     try {
-      final testFile = File(path.join(musicDir.path, '.test'));
-      await testFile.writeAsString('test');
-      await testFile.delete();
-      print('目录写入权限正常');
-    } catch (e) {
-      print('目录写入权限检查失败: $e');
-    }
+      print('开始将封面图嵌入音频文件: ${audioFile.path}');
 
-    return musicDir;
+      // 检查音频文件是否存在
+      if (!await audioFile.exists()) {
+        print('错误：音频文件不存在');
+        return false;
+      }
+
+      // 检查封面文件是否存在
+      final coverFile = File(coverPath);
+      if (!await coverFile.exists()) {
+        print('错误：封面文件不存在: $coverPath');
+        return false;
+      }
+
+      // 读取现有的音频标签
+      Metadata? existingMetadata;
+      try {
+        existingMetadata = await MetadataGod.readMetadata(file: audioFile.path);
+        print('成功读取音频标签');
+      } catch (e) {
+        print('读取音频标签失败，将创建新标签: $e');
+        existingMetadata = null;
+      }
+
+      // 读取封面图片数据
+      final coverData = await coverFile.readAsBytes();
+
+      // 确定MIME类型
+      String mimeType = 'image/jpeg';
+      if (coverPath.toLowerCase().endsWith('.png')) {
+        mimeType = 'image/png';
+      }
+
+      // 创建封面图片对象
+      final picture = Picture(data: coverData, mimeType: mimeType);
+
+      // 创建新的元数据，包含封面图片
+      final newMetadata = Metadata(
+        title:
+            existingMetadata?.title ??
+            path.basenameWithoutExtension(audioFile.path),
+        artist: existingMetadata?.artist,
+        album: existingMetadata?.album,
+        albumArtist: existingMetadata?.albumArtist,
+        genre: existingMetadata?.genre,
+        year: existingMetadata?.year,
+        trackNumber: existingMetadata?.trackNumber,
+        trackTotal: existingMetadata?.trackTotal,
+        discNumber: existingMetadata?.discNumber,
+        discTotal: existingMetadata?.discTotal,
+        durationMs: existingMetadata?.durationMs,
+        fileSize: existingMetadata?.fileSize,
+        picture: picture, // 设置封面图片
+      );
+
+      print('准备写入封面到音频标签，封面大小: ${coverData.length} 字节');
+
+      // 写入标签到音频文件
+      await MetadataGod.writeMetadata(
+        file: audioFile.path,
+        metadata: newMetadata,
+      );
+      print('封面成功嵌入到音频文件');
+
+      // 验证封面是否成功嵌入
+      print('验证封面嵌入结果...');
+      final verifyMetadata = await MetadataGod.readMetadata(
+        file: audioFile.path,
+      );
+      if (verifyMetadata.picture != null) {
+        print('封面嵌入验证成功，封面大小: ${verifyMetadata.picture!.data.length} 字节');
+
+        // 删除临时封面图片文件
+        try {
+          final coverFile = File(coverPath);
+          if (await coverFile.exists()) {
+            await coverFile.delete();
+            print('已删除临时封面图片文件: $coverPath');
+          }
+        } catch (e) {
+          print('删除临时封面图片文件失败: $e');
+        }
+
+        return true;
+      } else {
+        print('警告：封面嵌入验证失败');
+        return false;
+      }
+    } catch (e) {
+      print('嵌入封面时出错: $e');
+      return false;
+    }
   }
 }
 
@@ -1046,14 +1404,21 @@ class DownloadInfo {
   final String title;
   final String url;
   final String lkid;
+  final String? pic; // 封面图URL
 
-  DownloadInfo({required this.title, required this.url, required this.lkid});
+  DownloadInfo({
+    required this.title,
+    required this.url,
+    required this.lkid,
+    this.pic,
+  });
 
   factory DownloadInfo.fromJson(Map<String, dynamic> json) {
     return DownloadInfo(
       title: json['title']?.toString() ?? '',
       url: json['url']?.toString() ?? '',
       lkid: json['lkid']?.toString() ?? '',
+      pic: json['pic']?.toString(),
     );
   }
 }

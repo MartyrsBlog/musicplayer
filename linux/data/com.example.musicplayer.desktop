@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MusicPlayer
+Comment=A local music player app built with Flutter
+Exec=musicplayer
+Icon=com.example.musicplayer
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Player;
+MimeType=audio/x-wav;audio/x-vorbis+ogg;audio/x-flac;audio/x-musepack;audio/x-oggflac;audio/x-speex;audio/x-tta;audio/x-wavpack;audio/aac;audio/ac3;audio/aiff;audio/amr-wb;audio/ape;audio/basic;audio/flac;audio/mp4;audio/mpeg;audio/ogg;audio/vnd.rn-realaudio;audio/vorbis;audio/x-aac;audio/x-aiff;audio/x-caf;audio/x-flac;audio/x-m4a;audio/x-matroska;audio/x-mp3;audio/x-mpeg;audio/x-ms-wma;audio/x-ogg;audio/x-opus+ogg;audio/x-speex+ogg;audio/x-vorbis+ogg;audio/x-wav;video/mp4;video/mpeg;video/ogg;video/quicktime;video/webm;video/x-matroska;video/x-ms-wmv;video/x-ogm+ogg;video/x-theora+ogg;

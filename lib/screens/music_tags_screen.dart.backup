@@ -1,0 +1,556 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+import '../providers/player_provider.dart';
+import '../models/song.dart';
+import '../services/audio_manager.dart';
+import '../services/music_download_service.dart';
+
+class MusicTagsScreen extends StatefulWidget {
+  final Song song;
+
+  const MusicTagsScreen({
+    super.key,
+    required this.song,
+  });
+
+  @override
+  State<MusicTagsScreen> createState() => _MusicTagsScreenState();
+}
+
+class _MusicTagsScreenState extends State<MusicTagsScreen> {
+  late TextEditingController _titleController;
+  late TextEditingController _artistController;
+  late TextEditingController _albumController;
+  late File? _coverArtFile;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.song.title);
+    _artistController = TextEditingController(text: widget.song.artist);
+    _albumController = TextEditingController(text: widget.song.album);
+    _coverArtFile = widget.song.coverArtPath != null ? File(widget.song.coverArtPath!) : null;
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _artistController.dispose();
+    _albumController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickCoverArt() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+      
+      if (result != null && result.files.isNotEmpty) {
+        final imagePath = result.files.first.path!;
+        setState(() {
+          _coverArtFile = File(imagePath);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('封面已选择')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('选择封面失败: $e')),
+      );
+    }
+  }
+
+  void _showCoverOptions() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('封面选项'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('从相册选取'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickCoverArt();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.search),
+                title: const Text('网络搜索'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showCoverSearchDialog();
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _saveTags() async {
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final audioManager = AudioManager();
+      
+      // 保存到文件
+      final success = await audioManager.updateSongTags(
+        filePath: widget.song.filePath,
+        title: _titleController.text.trim(),
+        artist: _artistController.text.trim(),
+        album: _albumController.text.trim(),
+        coverArtPath: _coverArtFile?.path,
+      );
+      
+      if (success) {
+        final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+        
+        // 更新内存中的歌曲信息
+        playerProvider.updateSongInfo(
+          widget.song.id,
+          title: _titleController.text.trim(),
+          artist: _artistController.text.trim(),
+          album: _albumController.text.trim(),
+          coverArtPath: _coverArtFile?.path,
+        );
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('标签保存成功'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } else {
+        throw Exception('文件保存失败');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('保存失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('音乐标签'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          TextButton(
+            onPressed: _isSaving ? null : _saveTags,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('保存'),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // 封面区域
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    const Text(
+                      '封面',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // 封面图片
+                        Container(
+                          width: 200,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: _coverArtFile != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.file(
+                                    _coverArtFile!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Center(
+                                        child: Icon(Icons.album, size: 80, color: Colors.grey),
+                                      );
+                                    },
+                                  ),
+                                )
+                              : const Center(
+                                  child: Icon(Icons.album, size: 80, color: Colors.grey),
+                                ),
+                        ),
+                        const SizedBox(width: 16),
+                        // 写入选项按钮
+                        IconButton(
+                          onPressed: _showCoverOptions,
+                          icon: const Icon(Icons.edit),
+                          tooltip: '编辑封面',
+                          iconSize: 32,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // 信息编辑区域
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '音乐信息',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // 标题
+                    TextField(
+                      controller: _titleController,
+                      decoration: const InputDecoration(
+                        labelText: '标题',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.music_note),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // 艺术家
+                    TextField(
+                      controller: _artistController,
+                      decoration: const InputDecoration(
+                        labelText: '艺术家',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // 专辑
+                    TextField(
+                      controller: _albumController,
+                      decoration: const InputDecoration(
+                        labelText: '专辑',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.album),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // 文件路径（只读）
+                    TextField(
+                      enabled: false,
+                      decoration: const InputDecoration(
+                        labelText: '文件路径',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.folder),
+                      ),
+                      controller: TextEditingController(text: widget.song.filePath),
+                      maxLines: 2,
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // 时长（只读）
+                    TextField(
+                      enabled: false,
+                      decoration: const InputDecoration(
+                        labelText: '时长',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.timer),
+                      ),
+                      controller: TextEditingController(
+                        text: '${widget.song.duration.inMinutes}:${(widget.song.duration.inSeconds % 60).toString().padLeft(2, '0')}',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 显示封面搜索对话框
+  void _showCoverSearchDialog() {
+    final TextEditingController searchController = TextEditingController();
+    List<SongSearchResult> searchResults = [];
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, dialogSetState) {
+            bool isSearching = false;
+            
+            return AlertDialog(
+              title: const Text('搜索封面图'),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 400,
+                child: Column(
+                  children: [
+                    // 搜索框
+                    TextField(
+                      controller: searchController,
+                      decoration: InputDecoration(
+                        labelText: '输入歌手名或歌曲名',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () => searchController.clear(),
+                        ),
+                        border: const OutlineInputBorder(),
+                      ),
+                      onSubmitted: (value) {
+                        if (value.trim().isNotEmpty) {
+                          _searchForCovers(value.trim(), dialogSetState, searchController, context);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // 搜索按钮
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: isSearching 
+                            ? null 
+                            : () {
+                                if (searchController.text.trim().isNotEmpty) {
+                                  _searchForCovers(searchController.text.trim(), dialogSetState, searchController, context);
+                                }
+                              },
+                        child: isSearching
+                            ? const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('搜索中...'),
+                                ],
+                              )
+                            : const Text('搜索'),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // 搜索结果
+                    Expanded(
+                      child: searchResults.isEmpty
+                          ? const Center(
+                              child: Text('暂无搜索结果'),
+                            )
+                          : ListView.builder(
+                              itemCount: searchResults.length,
+                              itemBuilder: (context, index) {
+                                final result = searchResults[index];
+                                return ListTile(
+                                  title: Text(result.name),
+                                  subtitle: Text(result.singer),
+                                  trailing: const Icon(Icons.download),
+                                  onTap: () {
+                                    _downloadAndSetCover(result.id, result.name, context);
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('取消'),
+                ),
+              ],
+            );
+          });
+        },
+      );
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 搜索封面
+  Future<void> _searchForCovers(
+    String keyword,
+    StateSetter setState,
+    TextEditingController searchController,
+    BuildContext context,
+  ) async {
+    bool isSearching = true;
+    
+    setState(() {
+      searchResults = [];
+    });
+
+    try {
+      final results = await MusicDownloadService.searchMusic(keyword);
+      setState(() {
+        searchResults = results.take(10).toList(); // 只显示前10个结果
+        isSearching = false;
+      });
+    } catch (e) {
+      setState(() {
+        isSearching = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('搜索失败: $e')),
+        );
+      }
+    }
+  }
+
+  // 下载并设置封面
+  Future<void> _downloadAndSetCover(String songId, String songName, BuildContext context) async {
+    try {
+      // 显示下载进度
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('正在下载封面图...'),
+            ],
+          ),
+        ),
+      );
+
+      // 获取下载信息
+      final info = await MusicDownloadService.getDownloadInfo(songId);
+      if (info == null || info.pic == null || info.pic!.isEmpty) {
+        Navigator.pop(context); // 关闭进度对话框
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('该歌曲没有可用的封面图')),
+          );
+        }
+        return;
+      }
+
+      // 获取临时目录
+      final tempDir = Directory.systemTemp;
+      final coverPath = '${tempDir.path}/temp_cover_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      // 下载封面图
+      final success = await MusicDownloadService._downloadCoverArtDirect(
+        info.pic!,
+        songName,
+        tempDir,
+        coverPath,
+      );
+
+      Navigator.pop(context); // 关闭进度对话框
+
+      if (success && mounted) {
+        setState(() {
+          _coverArtFile = File(coverPath);
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('封面图下载成功'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        Navigator.pop(context); // 关闭搜索对话框
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('封面图下载失败'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // 关闭进度对话框
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('下载失败: $e')),
+        );
+      }
+    }
+  }
+}

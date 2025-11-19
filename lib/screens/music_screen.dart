@@ -749,17 +749,41 @@ class PlaylistBottomSheet extends StatelessWidget {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: isCurrentSong
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Icon(
-                            isCurrentSong ? Icons.play_arrow : Icons.music_note,
-                            color: isCurrentSong
-                                ? Theme.of(context).colorScheme.onPrimary
-                                : Theme.of(context).colorScheme.onSurface,
-                            size: 20,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: song.coverArtPath != null
+                                ? Image.file(
+                                    File(song.coverArtPath!),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: isCurrentSong
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Theme.of(context).colorScheme.surface,
+                                        child: Icon(
+                                          isCurrentSong ? Icons.play_arrow : Icons.music_note,
+                                          color: isCurrentSong
+                                              ? Theme.of(context).colorScheme.onPrimary
+                                              : Theme.of(context).colorScheme.onSurface,
+                                          size: 20,
+                                        ),
+                                      );
+                                    },
+                                  )
+                                : Container(
+                                    color: isCurrentSong
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).colorScheme.surface,
+                                    child: Icon(
+                                      isCurrentSong ? Icons.play_arrow : Icons.music_note,
+                                      color: isCurrentSong
+                                          ? Theme.of(context).colorScheme.onPrimary
+                                          : Theme.of(context).colorScheme.onSurface,
+                                      size: 20,
+                                    ),
+                                  ),
                           ),
                         ),
                         title: Text(

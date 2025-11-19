@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
+import 'package:metadata_god/metadata_god.dart';
 import 'providers/player_provider.dart';
 import 'screens/main_screen.dart';
 
-void main() {
+void main() async {
   // 初始化just_audio_media_kit以支持Linux平台
   JustAudioMediaKit.ensureInitialized();
+  
+  // 初始化metadata_god
+  await MetadataGod.initialize();
   
   runApp(
     ChangeNotifierProvider(

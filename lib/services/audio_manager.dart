@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:audiotags/audiotags.dart';
+import 'package:metadata_god/metadata_god.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/song.dart';
 
@@ -70,39 +70,11 @@ class AudioManager {
   // 获取音乐目录
   Future<Directory?> _getMusicDirectory() async {
     try {
-      // 对于 Android 平台，尝试获取外部存储目录
+      // 对于 Android 平台，使用统一的下载目录
       if (Platform.isAndroid) {
-        try {
-          // 尝试获取外部存储目录
-          final externalDir = await getExternalStorageDirectory();
-          if (externalDir != null) {
-            print('外部存储目录: ${externalDir.path}');
-            // 对于Android 10及以上版本，使用应用专属目录
-            // 对于Android 9及以下版本，尝试访问公共音乐目录
-            if (Platform.version.contains('Android 10') ||
-                Platform.version.contains('Android 11') ||
-                Platform.version.contains('Android 12') ||
-                Platform.version.contains('Android 13') ||
-                Platform.version.contains('Android 14')) {
-              // Android 10及以上使用应用专属目录
-              final musicDir = Directory('${externalDir.path}/Music');
-              print('Android 10+ 音乐目录: ${musicDir.path}');
-              return musicDir;
-            } else {
-              // Android 9及以下尝试访问公共音乐目录
-              final musicDir = Directory('/storage/emulated/0/Music');
-              print('Android 9- 音乐目录: ${musicDir.path}');
-              return musicDir;
-            }
-          }
-        } catch (e) {
-          print('获取外部存储目录时出错: $e');
-          // 如果无法获取外部存储目录，则使用文档目录
-          final docDir = await getApplicationDocumentsDirectory();
-          final musicDir = Directory('${docDir.path}/Music');
-          print('文档目录音乐文件夹: ${musicDir.path}');
-          return musicDir;
-        }
+        final musicDir = Directory('/storage/emulated/0/Download/MusicPlayer');
+        print('Android 音乐目录: ${musicDir.path}');
+        return musicDir;
       }
 
       // 对于 iOS 平台，使用文档目录
@@ -117,16 +89,8 @@ class AudioManager {
       if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
         final homeDir = _getHomeDirectory();
         if (homeDir != null) {
-          // 不同平台的音乐目录路径不同
-          String musicPath;
-          if (Platform.isLinux) {
-            musicPath = '$homeDir/Music'; // Linux 通常使用 Music 目录
-          } else if (Platform.isWindows) {
-            musicPath = '$homeDir/Music'; // Windows 通常使用 Music 目录
-          } else {
-            musicPath = '$homeDir/Music'; // macOS 通常使用 Music 目录
-          }
-          final musicDir = Directory(musicPath);
+          // 统一使用Music目录
+          final musicDir = Directory('$homeDir/Music');
           print('桌面平台音乐目录: ${musicDir.path}');
           return musicDir;
         }
@@ -191,9 +155,9 @@ class AudioManager {
             if (fileName.toLowerCase().endsWith(format)) {
               print('匹配音频文件: ${file.path}');
               // 读取音频文件的元数据
-              Tag? tags;
+              Metadata? tags;
               try {
-                tags = await AudioTags.read(file.path);
+                tags = await MetadataGod.readMetadata(file: file.path);
               } catch (e) {
                 print('读取音频标签时出错: $e');
                 // 如果标签读取失败，尝试从文件名提取信息
@@ -215,17 +179,66 @@ class AudioManager {
                 print('获取音频文件时长时出错: $e');
               }
 
+              // 检查封面图片
+              String? coverArtPath;
+              try {
+                // 优先检查音频文件内嵌的封面
+                if (tags?.picture != null) {
+                  // 如果有内嵌封面，保存到同目录供显示使用
+                  final audioDir = file.parent;
+                  final audioFileName = file.path.split('/').last;
+                  final baseName = audioFileName.contains('.') 
+                      ? audioFileName.substring(0, audioFileName.lastIndexOf('.'))
+                      : audioFileName;
+                  
+                  final coverFile = File('${audioDir.path}/$baseName.jpg');
+                  await coverFile.writeAsBytes(tags!.picture!.data);
+                  coverArtPath = coverFile.path;
+                } else {
+                  // 如果没有内嵌封面，检查同目录下的封面文件
+                  final audioDir = file.parent;
+                  final audioFileName = file.path.split('/').last;
+                  final baseName = audioFileName.contains('.') 
+                      ? audioFileName.substring(0, audioFileName.lastIndexOf('.'))
+                      : audioFileName;
+                  
+                  // 常见的封面文件名约定
+                  final coverNames = [
+                    '$baseName.jpg',
+                    '$baseName.jpeg',
+                    '$baseName.png',
+                    'cover.jpg',
+                    'cover.jpeg',
+                    'cover.png',
+                    'folder.jpg',
+                    'folder.jpeg',
+                    'folder.png',
+                    'artwork.jpg',
+                    'artwork.jpeg',
+                    'artwork.png'
+                  ];
+                  
+                  for (final coverName in coverNames) {
+                    final coverFile = File('${audioDir.path}/$coverName');
+                    if (await coverFile.exists()) {
+                      coverArtPath = coverFile.path;
+                      break;
+                    }
+                  }
+                }
+              } catch (e) {
+                print('检查封面图片时出错: $e');
+              }
+
               // 创建歌曲对象
               final song = Song(
                 id: file.path.hashCode.toString(),
                 title: tags?.title ?? _extractTitle(fileName),
-                artist: tags?.trackArtist ?? '未知艺术家',
+                artist: tags?.artist ?? '未知艺术家',
                 album: tags?.album ?? '未知专辑',
                 filePath: file.path,
                 duration: duration,
-                coverArtPath: tags?.pictures.isNotEmpty == true
-                    ? null
-                    : null, // 简化处理，实际应用中可能需要保存封面数据
+                coverArtPath: coverArtPath,
               );
               songs.add(song);
               break;
@@ -252,6 +265,75 @@ class AudioManager {
 
     // 将下划线和连字符替换为空格
     return fileName.replaceAll('_', ' ').replaceAll('-', ' ');
+  }
+
+  // 更新音乐标签
+  Future<bool> updateSongTags({
+    required String filePath,
+    String? title,
+    String? artist,
+    String? album,
+    String? coverArtPath,
+  }) async {
+    try {
+      // 读取现有的元数据
+      Metadata? existingMetadata;
+      try {
+        existingMetadata = await MetadataGod.readMetadata(file: filePath);
+      } catch (e) {
+        print('读取现有元数据失败: $e');
+        existingMetadata = null;
+      }
+
+      // 准备图片数据
+      Picture? picture;
+      if (coverArtPath != null) {
+        try {
+          final coverFile = File(coverArtPath);
+          if (await coverFile.exists()) {
+            final imageData = await coverFile.readAsBytes();
+            // 简单的MIME类型检测
+            String mimeType = 'image/jpeg';
+            if (coverArtPath.toLowerCase().endsWith('.png')) {
+              mimeType = 'image/png';
+            }
+            
+            picture = Picture(
+              data: imageData,
+              mimeType: mimeType,
+            );
+          }
+        } catch (e) {
+          print('读取封面图片失败: $e');
+        }
+      }
+
+      // 创建新的元数据
+      final newMetadata = Metadata(
+        title: title ?? existingMetadata?.title,
+        artist: artist ?? existingMetadata?.artist,
+        album: album ?? existingMetadata?.album,
+        albumArtist: existingMetadata?.albumArtist,
+        genre: existingMetadata?.genre,
+        year: existingMetadata?.year,
+        trackNumber: existingMetadata?.trackNumber,
+        trackTotal: existingMetadata?.trackTotal,
+        discNumber: existingMetadata?.discNumber,
+        discTotal: existingMetadata?.discTotal,
+        durationMs: existingMetadata?.durationMs,
+        fileSize: existingMetadata?.fileSize,
+        picture: picture,
+      );
+
+      // 写入元数据到文件
+      await MetadataGod.writeMetadata(file: filePath, metadata: newMetadata);
+      
+      print('成功更新音乐标签: $filePath');
+      return true;
+    } catch (e) {
+      print('更新音乐标签失败: $e');
+      return false;
+    }
   }
 
   // 释放资源

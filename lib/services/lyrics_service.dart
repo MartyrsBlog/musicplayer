@@ -1,33 +1,45 @@
 import 'dart:io';
+import 'package:path/path.dart' as path;
 import 'package:flutter_lyric/lyrics_reader_model.dart';
 import 'package:flutter_lyric/lyrics_reader.dart';
-import 'package:audiotags/audiotags.dart';
+import 'package:metadata_god/metadata_god.dart';
 import '../models/song.dart';
 
 class LyricsService {
   /// 读取歌曲的歌词
   static Future<LyricsReaderModel?> loadLyrics(Song song) async {
     try {
+      print('开始加载歌词，歌曲文件: ${song.filePath}');
+      print('歌曲标题: ${song.title}');
+      
       // 1. 尝试读取音频文件内置的歌词标签
+      print('尝试读取内置歌词...');
       final embeddedLyrics = await _loadEmbeddedLyrics(song);
       if (embeddedLyrics != null) {
+        print('找到内置歌词，长度: ${embeddedLyrics.length}');
         return LyricsModelBuilder.create()
             .bindLyricToMain(embeddedLyrics)
             .getModel();
       }
 
       // 2. 尝试读取外挂歌词文件
+      print('尝试读取外挂歌词文件...');
       final externalLyrics = await _loadExternalLyrics(song);
       if (externalLyrics != null) {
-        return LyricsModelBuilder.create()
+        print('找到外挂歌词，长度: ${externalLyrics.length}');
+        final lyricsModel = LyricsModelBuilder.create()
             .bindLyricToMain(externalLyrics)
             .getModel();
+        print('歌词模型创建成功，歌词行数: ${lyricsModel.lyrics.length}');
+        return lyricsModel;
       }
 
       // 3. 如果都没有找到歌词，返回null
+      print('未找到任何歌词文件');
       return null;
     } catch (e) {
       print('加载歌词时出错: $e');
+      print('错误堆栈: ${StackTrace.current}');
       return null;
     }
   }
@@ -35,11 +47,9 @@ class LyricsService {
   /// 读取音频文件内置的歌词标签
   static Future<String?> _loadEmbeddedLyrics(Song song) async {
     try {
-      // 使用audiotags读取音频文件的元数据
-      final tag = await AudioTags.read(song.filePath);
-      if (tag != null && tag.lyrics != null && tag.lyrics!.isNotEmpty) {
-        return tag.lyrics;
-      }
+      // metadata_god不支持歌词字段，暂时跳过内置歌词读取
+      // 未来可以考虑使用其他库来读取歌词
+      print('metadata_god不支持内置歌词读取，跳过');
       
       return null;
     } catch (e) {
@@ -56,23 +66,47 @@ class LyricsService {
       final audioFile = File(song.filePath);
       final fileNameWithoutExtension = _getFileNameWithoutExtension(audioFile);
       
-      // 构造同名的.lrc文件路径
-      final lrcFilePath = '${audioFile.parent.path}/$fileNameWithoutExtension.lrc';
-      final lrcFile = File(lrcFilePath);
+      // 1. 首先在歌曲文件同目录下查找同名.lrc文件
+      final sameDirLrcPath = path.join(audioFile.parent.path, '$fileNameWithoutExtension.lrc');
+      final sameDirLrcFile = File(sameDirLrcPath);
       
-      print('正在查找外挂歌词文件: $lrcFilePath');
+      print('正在查找同目录外挂歌词文件: $sameDirLrcPath');
       
-      // 检查.lrc文件是否存在
-      if (await lrcFile.exists()) {
-        print('找到外挂歌词文件，正在读取...');
-        // 读取歌词文件内容
-        final lyricsContent = await lrcFile.readAsString();
-        print('外挂歌词读取成功，长度: ${lyricsContent.length}');
+      if (await sameDirLrcFile.exists()) {
+        print('找到同目录外挂歌词文件，正在读取...');
+        final lyricsContent = await sameDirLrcFile.readAsString();
+        print('同目录外挂歌词读取成功，长度: ${lyricsContent.length}');
         return lyricsContent;
-      } else {
-        print('外挂歌词文件不存在: $lrcFilePath');
       }
       
+      // 2. 如果同目录没有找到，在上级目录的Lyrics文件夹中查找
+      final parentDir = audioFile.parent;
+      final grandParentDir = parentDir.parent;
+      final lyricsDirPath = path.join(grandParentDir.path, 'Lyrics');
+      final lyricsDir = Directory(lyricsDirPath);
+      
+      print('正在查找上上级目录的Lyrics文件夹: $lyricsDirPath');
+      
+      if (await lyricsDir.exists()) {
+        final lyricsLrcPath = path.join(lyricsDir.path, '$fileNameWithoutExtension.lrc');
+        final lyricsLrcFile = File(lyricsLrcPath);
+        
+        print('正在查找Lyrics文件夹中的歌词文件: $lyricsLrcPath');
+        
+        if (await lyricsLrcFile.exists()) {
+          print('找到Lyrics文件夹中的歌词文件，正在读取...');
+          final lyricsContent = await lyricsLrcFile.readAsString();
+          print('Lyrics文件夹中的歌词读取成功，长度: ${lyricsContent.length}');
+          return lyricsContent;
+        } else {
+          print('Lyrics文件夹中没有找到同名歌词文件: $lyricsLrcPath');
+        }
+      } else {
+        print('上级目录的Lyrics文件夹不存在: $lyricsDirPath');
+      }
+      
+      // 3. 如果都没找到，返回null
+      print('未找到任何外挂歌词文件');
       return null;
     } catch (e) {
       print('读取外挂歌词时出错: $e');

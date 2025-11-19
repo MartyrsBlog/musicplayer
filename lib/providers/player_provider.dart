@@ -175,6 +175,7 @@ class PlayerProvider with ChangeNotifier {
 
         // 加载歌词
         _lyricsModel = await LyricsService.loadLyrics(song);
+        notifyListeners(); // 通知UI更新歌词
       } catch (e) {
         // 处理播放错误
         if (kDebugMode) {
@@ -336,6 +337,7 @@ class PlayerProvider with ChangeNotifier {
 
         // 加载歌词
         _lyricsModel = await LyricsService.loadLyrics(song);
+        notifyListeners(); // 通知UI更新歌词
 
         await _audioPlayer.play();
 
@@ -583,6 +585,7 @@ class PlayerProvider with ChangeNotifier {
   // 保存用户歌单到SharedPreferences
   Future<void> _saveUserPlaylists() async {
     try {
+      // 使用JSON格式保存歌单数据
       final playlistsJson = _userPlaylists.map((p) => {
         'id': p['id'],
         'name': p['name'],
@@ -592,6 +595,9 @@ class PlayerProvider with ChangeNotifier {
       
       final playlistsString = playlistsJson.map((p) => p.toString()).join('|');
       await _prefs.setString('user_playlists', playlistsString);
+      
+      // 同时保存歌曲列表的详细信息用于调试
+      print('Saved playlists: $_userPlaylists');
     } catch (e) {
       print('Failed to save user playlists: $e');
     }
@@ -601,22 +607,49 @@ class PlayerProvider with ChangeNotifier {
   Future<void> _loadUserPlaylists() async {
     try {
       final playlistsString = _prefs.getString('user_playlists') ?? '';
+      print('Loading playlists from storage: $playlistsString');
+      
       if (playlistsString.isNotEmpty) {
         final playlistsParts = playlistsString.split('|');
         _userPlaylists = playlistsParts.map((part) {
-          // 简单解析，实际应用中建议使用JSON
-          final id = part.substring(part.indexOf('id: ') + 4, part.indexOf(','));
-          final nameStart = part.indexOf('name: ') + 6;
-          final nameEnd = part.indexOf(', songs:');
-          final name = part.substring(nameStart, nameEnd);
-          
-          return {
-            'id': id,
-            'name': name,
-            'songs': <String>[],
-            'created_at': DateTime.now().toIso8601String(),
-          };
+          try {
+            // 更准确的解析方法
+            final idMatch = RegExp(r"id: ([^,]+)").firstMatch(part);
+            final nameMatch = RegExp(r"name: ([^,]+)").firstMatch(part);
+            final songsMatch = RegExp(r"songs: \[([^\]]*)\]").firstMatch(part);
+            
+            final id = idMatch?.group(1) ?? '';
+            final name = nameMatch?.group(1) ?? '';
+            
+            // 解析歌曲列表
+            List<String> songs = [];
+            if (songsMatch != null && songsMatch.group(1) != null && songsMatch.group(1)!.isNotEmpty) {
+              final songsString = songsMatch.group(1)!;
+              // 分割歌曲ID，去除空格
+              songs = songsString.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+            }
+            
+            print('Loaded playlist: $name, songs: $songs');
+            
+            return {
+              'id': id,
+              'name': name,
+              'songs': songs,
+              'created_at': DateTime.now().toIso8601String(),
+            };
+          } catch (e) {
+            print('Error parsing playlist part: $part, error: $e');
+            // 返回空歌单作为fallback
+            return {
+              'id': DateTime.now().millisecondsSinceEpoch.toString(),
+              'name': '解析失败的歌单',
+              'songs': <String>[],
+              'created_at': DateTime.now().toIso8601String(),
+            };
+          }
         }).toList();
+        
+        print('Final loaded playlists: $_userPlaylists');
       }
     } catch (e) {
       print('Failed to load user playlists: $e');

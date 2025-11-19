@@ -123,12 +123,31 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
-                      isCurrentSong ? Icons.play_arrow : Icons.music_note,
-                      color: Colors.grey[800],
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: song.coverArtPath != null
+                          ? Image.file(
+                              File(song.coverArtPath!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[300],
+                                  child: Icon(
+                                    isCurrentSong ? Icons.play_arrow : Icons.music_note,
+                                    color: Colors.grey[800],
+                                  ),
+                                );
+                              },
+                            )
+                          : Container(
+                              color: Colors.grey[300],
+                              child: Icon(
+                                isCurrentSong ? Icons.play_arrow : Icons.music_note,
+                                color: Colors.grey[800],
+                              ),
+                            ),
                     ),
                   ),
                   title: Text(

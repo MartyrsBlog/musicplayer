@@ -135,57 +135,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
     }
   }
 
-  Future<void> _downloadSongWithEmbeddedLyrics(SongSearchResult song) async {
-    // 检查Android权限
-    if (Theme.of(context).platform == TargetPlatform.android) {
-      final hasPermission = await _checkAndroidPermissions();
-      if (!hasPermission) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('需要存储权限才能下载音乐'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-    }
-
-    setState(() {
-      _isDownloading = true;
-      _downloadStatus = '正在下载嵌入歌词的 ${song.name}...';
-    });
-
-    try {
-      final downloadDir = await MusicDownloadService.getDownloadDirectory();
-      final success = await MusicDownloadService.downloadSongWithEmbeddedLyrics(song.id, downloadDir);
-
-      setState(() {
-        _isDownloading = false;
-        _downloadStatus = success ? '嵌入歌词的歌曲下载完成' : '下载失败';
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? '嵌入歌词的歌曲下载完成' : '下载失败'),
-            backgroundColor: success ? Colors.green : Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() {
-        _isDownloading = false;
-        _downloadStatus = '下载出错';
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('下载出错: $e')),
-        );
-      }
-    }
-  }
+  
 
   void _showDownloadOptions(SongSearchResult song) {
     showDialog(
@@ -220,15 +170,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
                   _downloadSong(song);
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.music_note),
-                title: const Text('下载嵌入歌词的歌曲'),
-                subtitle: const Text('歌词直接嵌入音频文件标签中', style: TextStyle(fontSize: 12)),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _downloadSongWithEmbeddedLyrics(song);
-                },
-              ),
+              
             ],
           ),
           actions: [

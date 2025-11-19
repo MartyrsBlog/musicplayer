@@ -140,3 +140,15 @@ set(FLUTTER_VERSION_MAJOR 1)
 set(FLUTTER_VERSION_MINOR 0)
 set(FLUTTER_VERSION_PATCH 0)
 set(FLUTTER_VERSION_BUILD 1)
+
+# === Linux Desktop Integration ===
+# Install desktop file
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/data/com.example.musicplayer.desktop"
+  DESTINATION "share/applications"
+  COMPONENT Runtime)
+
+# Install icon files
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/data/icons/com.example.musicplayer.jpg"
+  DESTINATION "share/icons/hicolor/512x512/apps"
+  RENAME "com.example.musicplayer.jpg"
+  COMPONENT Runtime)
