@@ -37,14 +37,11 @@ jobs:
         
     - name: Clean and Build iOS (No codesign)
       run: |
-        cd ios
         # 清理之前的构建
         flutter clean
-        rm -rf Pods Podfile.lock
         # 重新安装依赖
         flutter pub get
-        pod install --repo-update
-        # 构建
+        # 构建 (Flutter 会自动处理 iOS 依赖)
         flutter build ios --release --no-codesign
         
     - name: Create IPA
