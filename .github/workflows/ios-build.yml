@@ -35,7 +35,7 @@ jobs:
       with:
         xcode-version: '16.4.0'
         
-    - name: Clean and Build iOS (No codesign)
+    - name: Build iOS (No codesign)
       run: |
         # 彻底清理之前的构建
         flutter clean
@@ -45,9 +45,8 @@ jobs:
         # 回到根目录重新获取依赖
         cd ..
         flutter pub get
-        # 重新生成 iOS 项目文件
-        cd ios
-        flutter precache --ios
+        # 修改 GeneratedPluginRegistrant.m 移除 audio_session 引用
+        sed -i '' '/audio_session/,/#endif/d' ios/Runner/GeneratedPluginRegistrant.m
         # 构建
         flutter build ios --release --no-codesign
         
