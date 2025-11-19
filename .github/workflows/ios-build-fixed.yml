@@ -27,7 +27,7 @@ jobs:
     - name: Create iOS Project
       run: |
         cd ios
-        flutter create --platforms=ios --org com.blmay musicplayer --ios-language objc
+        flutter create --platforms=ios --org com.blay musicplayer
         
     - name: Copy Source Files
       run: |
