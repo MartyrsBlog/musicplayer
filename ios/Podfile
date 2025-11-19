@@ -10,5 +10,13 @@ target 'Runner' do
   use_modular_headers!
 
   # Flutter integration will be handled by the Flutter tool
-  # No need for manual pod installation
+end
+
+# Add Flutter plugins integration
+flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
