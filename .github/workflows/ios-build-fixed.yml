@@ -18,23 +18,42 @@ jobs:
         channel: 'stable'
         architecture: x64
         
-    - name: Generate iOS Files and Install CocoaPods
+    - name: Generate iOS Project Files
       run: |
         cd ios
         rm -rf Pods Podfile.lock Runner.xcodeproj
         flutter pub get
-        flutter build ios --no-codesign --simulator
+        
+    - name: Create iOS Project
+      run: |
+        cd ios
+        flutter create --platforms=ios --org com.blmay musicplayer --ios-language objc
+        
+    - name: Copy Source Files
+      run: |
+        # 复制源代码到新项目
+        cp -r ../lib ../test ../web ../assets ../pubspec.yaml ../.dart_tool/ ../analysis_options.yaml ios/musicplayer/
+        
+    - name: Install CocoaPods
+      run: |
+        cd ios/musicplayer
+        pod install
+        
+    - name: Build iOS App
+      run: |
+        cd ios/musicplayer
+        flutter build ios --release --no-codesign
         
     - name: Create IPA
       run: |
         mkdir -p build/ios/ipa
-        cd build/ios/iphoneos
+        cd ios/musicplayer/build/ios/iphoneos
         zip -r ../../ipa/musicplayer.ipa Runner.app
         
     - name: Upload IPA
       uses: actions/upload-artifact@v4
       with:
-        name: musicplayer-ios-ipa-fixed
+        name: musicplayer-ios-ipa-signed
         path: build/ios/ipa/musicplayer.ipa
         retention-days: 30
         if-no-files-found: warn
