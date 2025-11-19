@@ -28,12 +28,17 @@ jobs:
       run: |
         cd ios
         flutter create --platforms=ios --org com.blay musicplayer_ios
+        # 显示目录结构调试
+        ls -la
+        ls -la musicplayer_ios/
         # 确保目标目录存在
         mkdir -p musicplayer
-        mv musicplayer_ios/Runner.xcodeproj musicplayer/
-        mv musicplayer_ios/Runner musicplayer/
-        mv musicplayer_ios/Podfile musicplayer/
-        rmdir musicplayer_ios
+        # 使用 cp -r 代替 mv 来避免目录不存在的问题
+        cp -r musicplayer_ios/Runner.xcodeproj musicplayer/
+        cp -r musicplayer_ios/Runner musicplayer/
+        cp musicplayer_ios/Podfile musicplayer/
+        # 清理临时目录
+        rm -rf musicplayer_ios
         
     - name: Copy Source Files
       run: |
