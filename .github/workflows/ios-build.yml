@@ -60,21 +60,23 @@ jobs:
         zip -r ../../ipa/musicplayer-release.ipa Runner.app
         
     - name: Upload Debug IPA
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: musicplayer-debug-ipa
         path: build/ios/ipa/musicplayer-debug.ipa
+        retention-days: 30
         
     - name: Upload Release IPA
       if: startsWith(github.ref, 'refs/tags/v')
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: musicplayer-release-ipa
         path: build/ios/ipa/musicplayer-release.ipa
+        retention-days: 30
         
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/v')
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: build/ios/ipa/musicplayer-release.ipa
         draft: false

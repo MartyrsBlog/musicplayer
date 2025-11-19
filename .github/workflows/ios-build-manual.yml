@@ -44,7 +44,8 @@ jobs:
         zip -r ../../ipa/musicplayer.ipa Runner.app
         
     - name: Upload IPA
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: musicplayer-ios-ipa
         path: build/ios/ipa/musicplayer.ipa
+        retention-days: 30
