@@ -1,0 +1,47 @@
+name: Build iOS IPA (Fixed)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.9.2'
+        channel: 'stable'
+        
+    - name: Install CocoaPods
+      run: |
+        cd ios
+        pod install
+        
+    - name: Clean Flutter
+      run: flutter clean
+      
+    - name: Get Flutter dependencies
+      run: flutter pub get
+      
+    - name: Build iOS IPA
+      run: |
+        flutter build ios --release --no-codesign
+        
+    - name: Create IPA
+      run: |
+        mkdir -p build/ios/ipa
+        cd build/ios/iphoneos
+        zip -r ../../ipa/musicplayer.ipa Runner.app
+        
+    - name: Upload IPA
+      uses: actions/upload-artifact@v4
+      with:
+        name: musicplayer-ios-ipa-fixed
+        path: build/ios/ipa/musicplayer.ipa
+        retention-days: 30
+        if-no-files-found: warn
