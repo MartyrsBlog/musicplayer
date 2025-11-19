@@ -45,9 +45,11 @@ jobs:
         # 回到根目录重新获取依赖
         cd ..
         flutter pub get
-        # 修改 GeneratedPluginRegistrant.m 移除 audio_session 引用
-        sed -i '' '/audio_session/,/#endif/d' ios/Runner/GeneratedPluginRegistrant.m
         # 构建
+        flutter build ios --release --no-codesign
+        # 构建后再次移除 audio_session 引用
+        sed -i '' '/audio_session/,/#endif/d' ios/Runner/GeneratedPluginRegistrant.m
+        # 重新构建
         flutter build ios --release --no-codesign
         
     - name: Create IPA
