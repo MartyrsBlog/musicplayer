@@ -28,6 +28,7 @@
 - 使用 `flutter_lyric` 实现歌词同步高亮显示
 - 智能歌词加载策略：优先内置歌词，其次外置文件
 - 歌词嵌入音频文件功能
+- **歌词高亮颜色：黑色**（适配亮色主题）
 
 ### 🗂️ 音乐库管理
 - 自动扫描本地音乐文件
@@ -39,13 +40,14 @@
 ### 🎨 用户界面
 - Apple Music 风格的简约设计
 - Material Design 3 规范
-- 深色主题（默认配色：深灰色主色调）
+- **亮色主题**（默认配色：天蓝色主色调，白色背景）
 - 响应式布局适配不同屏幕尺寸
 - 多个专门界面：主界面、音乐库、播放界面、下载界面、播放列表等
+- **底部导航栏当前页面文字高亮为黑色**
 
 ### 🔧 平台支持
 - **Android**: 完整支持，包括存储权限适配
-- **iOS**: 完整支持
+- **iOS**: 完整支持，支持通过 GitHub Actions 自动构建 IPA
 - **Linux**: 使用 `just_audio_media_kit` 提供音频支持
 - **Windows**: 完整支持
 - **macOS**: 完整支持
@@ -65,7 +67,7 @@ lib/
 │   ├── main_screen.dart          # 主界面（底部导航）
 │   ├── music_library_screen.dart # 音乐库界面
 │   ├── music_screen.dart         # 播放界面
-│   ├── profile_screen.dart       # 个人资料界面
+│   ├── profile_screen.dart       # 个人资料界面（重新设计）
 │   ├── settings_screen.dart      # 设置界面
 │   ├── download_screen.dart      # 音乐下载界面
 │   ├── download_list_screen.dart # 下载列表界面
@@ -77,6 +79,9 @@ lib/
 │   └── music_download_service.dart # 音乐下载服务
 └── utils/
     └── file_format_fixer.dart    # 文件格式修复工具
+
+.github/workflows/
+└── ios-build-fixed.yml           # iOS 自动构建工作流
 ```
 
 ### 技术栈
@@ -186,6 +191,62 @@ flutter pub run flutter_launcher_icons:main
 dart run fix_audio_formats.dart
 ```
 
+## iOS 自动构建
+
+### GitHub Actions 工作流
+项目包含完整的 iOS IPA 自动构建工作流，支持无 Mac 环境下构建 iOS 应用包。
+
+#### 工作流特性
+- **自动环境配置**: 使用 macOS runner 自动配置 Flutter 和 iOS 环境
+- **智能项目结构**: 自动处理 iOS 项目文件和依赖
+- **CocoaPods 集成**: 自动安装和配置 iOS 依赖
+- **IPA 打包**: 自动生成可安装的 iOS 应用包
+- **工件上传**: 自动上传构建产物，支持下载
+
+#### 使用方法
+1. 推送代码到 GitHub 仓库
+2. 在 GitHub Actions 页面手动触发 "Build iOS IPA (Fixed)" 工作流
+3. 等待构建完成（约 5-10 分钟）
+4. 下载生成的 IPA 文件
+
+#### 工作流文件位置
+- 配置文件：`.github/workflows/ios-build-fixed.yml`
+- 支持的 Flutter 版本：3.35.7（稳定版）
+
+## 界面更新
+
+### 主题变更
+项目已从深色主题切换到亮色主题：
+
+#### 主要颜色配置
+```dart
+colorScheme: const ColorScheme.light(
+  primary: Color(0xFF60A5FA),      // 天蓝色主色调
+  secondary: Color(0xFF93C5FD),    // 浅蓝色辅助色
+  surface: Color(0xFFFFFFFF),      // 背景色
+  background: Color(0xFFFFFFFF),   // 白色背景色
+  onPrimary: Colors.white,          // 主色调上的文字
+  onSecondary: Color(0xFF1F2937),  // 辅助色上的文字
+  onSurface: Color(0xFF1F2937),    // 表面文字（深灰色）
+  onBackground: Color(0xFF1F2937), // 背景文字（深灰色）
+)
+```
+
+### 个人资料界面重新设计
+- **上半部分**: 用户头像、姓名、个人短语展示
+- **下半部分**: 圆角长方形控件，包含歌单和下载标签
+- **布局比例**: 上下部分 1:1 比例
+- **视觉风格**: 亮色主题，渐变背景，圆角设计
+
+### 底部导航栏更新
+- **当前页面高亮**: 文字颜色变为黑色 (`Color(0xFF1F2937)`)
+- **非当前页面**: 灰色文字 (`Color(0xFF9CA3AF)`)
+- **图标移除**: 移除了音乐库图标，仅保留文字
+
+### 歌词显示优化
+- **高亮颜色**: 黑色 (`Color(0xFF1F2937)`)，适配亮色主题
+- **同步显示**: 使用 flutter_lyric 实现精准的歌词同步
+
 ## 核心组件详解
 
 ### PlayerProvider
@@ -224,22 +285,26 @@ dart run fix_audio_formats.dart
 ### 主界面 (MainScreen)
 - 底部导航栏设计
 - 集成音乐库、播放界面、下载等功能入口
+- **更新**: 当前页面文字高亮为黑色
 
 ### 音乐库界面 (MusicLibraryScreen)
 - 本地音乐文件展示
 - 音乐分类和筛选功能
 - 批量操作支持
+- **更新**: 适配亮色主题
 
 ### 播放界面 (MusicScreen)
 - 音乐播放控制
-- 歌词同步显示
+- 歌词同步显示（黑色高亮）
 - 专辑封面展示
 - 播放进度控制
+- **新增**: 封面搜索和替换功能
 
 ### 下载界面 (DownloadScreen)
 - 在线音乐搜索
 - 下载选项选择
 - 下载进度显示
+- **更新**: 搜索框位置优化，按钮颜色协调
 
 ### 下载列表界面 (DownloadListScreen)
 - 已下载音乐管理
@@ -259,10 +324,13 @@ dart run fix_audio_formats.dart
 - 应用配置选项
 - 主题设置
 - 播放偏好设置
+- **更新**: 移除黑色块，适配亮色主题
 
 ### 个人资料界面 (ProfileScreen)
-- 用户信息展示
-- 应用统计信息
+- **完全重新设计**: 用户头像、姓名、短语展示
+- 圆角长方形控件设计
+- 歌单和下载标签整合
+- **布局**: 上下 1:1 比例，头像位于上半部分中间
 
 ## 测试
 
@@ -382,6 +450,12 @@ flutter test --coverage
    - 检查下载文件的实际格式与扩展名是否匹配
    - 运行 `dart run fix_audio_formats.dart` 批量修复
 
+7. **iOS 构建问题**
+   - 确保 Flutter 版本兼容性（推荐 3.35.7）
+   - 检查 GitHub Actions 工作流配置
+   - 确认 iOS 项目文件结构正确
+   - 验证 CocoaPods 依赖安装
+
 ## 贡献指南
 
 1. Fork 项目
@@ -458,4 +532,4 @@ dart run fix_audio_formats.dart
 
 ---
 
-*最后更新: 2025年11月19日*
+*最后更新: 2025年11月20日*
