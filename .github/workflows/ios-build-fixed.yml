@@ -24,24 +24,18 @@ jobs:
         rm -rf Pods Podfile.lock Runner.xcodeproj
         flutter pub get
         
-    - name: Create iOS Project
+    - name: Setup iOS Project
       run: |
         cd ios
-        flutter create --platforms=ios --org com.blay musicplayer_ios
-        # 显示目录结构调试
-        ls -la
-        ls -la musicplayer_ios/ios/
         # 确保目标目录存在
         mkdir -p musicplayer
-        # 复制 iOS 项目文件，注意它们在 ios/ 子目录下
-        cp -r musicplayer_ios/ios/Runner.xcodeproj musicplayer/
-        cp -r musicplayer_ios/ios/Runner musicplayer/
-        cp -r musicplayer_ios/ios/Runner.xcworkspace musicplayer/
-        cp -r musicplayer_ios/ios/Flutter musicplayer/
-        # Podfile 也在 ios/ 子目录下
-        cp musicplayer_ios/ios/Podfile musicplayer/
-        # 清理临时目录
-        rm -rf musicplayer_ios
+        # 直接使用现有的 iOS 项目，创建一个简化的项目结构
+        cp -r Runner musicplayer/
+        cp -r Runner.xcodeproj musicplayer/
+        cp -r Runner.xcworkspace musicplayer/
+        cp -r Flutter musicplayer/
+        # 使用现有的 Podfile
+        cp Podfile musicplayer/
         
     - name: Copy Source Files
       run: |
