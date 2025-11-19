@@ -45,6 +45,13 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 监听Provider变化，实时更新歌单
+    _initializePlaylists();
+  }
+
+  @override
   void dispose() {
     _tabController.dispose();
     _scrollController.dispose();
@@ -57,8 +64,23 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     final favoriteSongIds = playerProvider.favoriteSongs;
     
     // 获取所有歌曲并筛选喜欢的歌曲
-    final allSongs = playerProvider.playlist;
+    final allSongs = playerProvider.musicLibrary;
     final favoriteSongs = allSongs.where((song) => favoriteSongIds.contains(song.id)).toList();
+    
+    // 获取用户创建的歌单
+    final userPlaylists = playerProvider.userPlaylists.map((playlist) {
+      final playlistSongs = allSongs.where((song) => 
+        playlist['songs'].contains(song.id)
+      ).toList();
+      
+      return Playlist(
+        id: playlist['id'],
+        name: playlist['name'],
+        icon: Icons.playlist_play,
+        color: Colors.blue,
+        songs: playlistSongs,
+      );
+    }).toList();
     
     setState(() {
       _playlists = [
@@ -69,6 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           color: Colors.red,
           songs: favoriteSongs,
         ),
+        ...userPlaylists,
       ];
     });
   }
@@ -93,6 +116,8 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   void _addNewPlaylist() {
+    final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+    
     showDialog(
       context: context,
       builder: (context) {
@@ -116,18 +141,12 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             ElevatedButton(
               onPressed: () {
                 if (playlistName.isNotEmpty) {
-                  setState(() {
-                    _playlists.add(
-                      Playlist(
-                        id: DateTime.now().millisecondsSinceEpoch.toString(),
-                        name: playlistName,
-                        icon: Icons.playlist_add,
-                        color: Colors.green,
-                        songs: [],
-                      ),
-                    );
-                  });
+                  playerProvider.createPlaylist(playlistName);
                   Navigator.pop(context);
+                  _initializePlaylists(); // 重新加载歌单列表
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('歌单创建成功')),
+                  );
                 }
               },
               child: const Text('创建'),
@@ -219,6 +238,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   void _deletePlaylist(Playlist playlist) {
+    if (playlist.id == 'favorites') return; // 不能删除"我的喜欢"
+    
+    final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+    
     showDialog(
       context: context,
       builder: (context) {
@@ -232,10 +255,12 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             ),
             ElevatedButton(
               onPressed: () {
-                setState(() {
-                  _playlists.remove(playlist);
-                });
+                playerProvider.deletePlaylist(playlist.id);
                 Navigator.pop(context);
+                _initializePlaylists(); // 重新加载歌单列表
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('歌单已删除')),
+                );
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text('删除'),
@@ -443,6 +468,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   Widget _buildPlaylistPage() {
+    final playerProvider = Provider.of<PlayerProvider>(context);
+    final isCardView = playerProvider.playlistViewMode;
+    
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -458,6 +486,14 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 ),
               ),
               const Spacer(),
+              // 切换显示模式按钮
+              IconButton(
+                onPressed: () {
+                  playerProvider.togglePlaylistViewMode();
+                },
+                icon: Icon(isCardView ? Icons.view_list : Icons.grid_view),
+                tooltip: isCardView ? '切换到列表视图' : '切换到卡片视图',
+              ),
               IconButton(
                 onPressed: _addNewPlaylist,
                 icon: const Icon(Icons.add),
@@ -468,77 +504,127 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           
           const SizedBox(height: 16),
           
-          // 歌单网格
+          // 歌单显示区域
           Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 1.2,
-                crossAxisSpacing: 16.0,
-                mainAxisSpacing: 16.0,
-              ),
-              itemCount: _playlists.length,
-              itemBuilder: (context, index) {
-                final playlist = _playlists[index];
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PlaylistDetailScreen(
-                          playlist: playlist,
-                          onPlaylistUpdate: (updatedPlaylist) {
-                            setState(() {
-                              final playlistIndex = _playlists.indexOf(playlist);
-                              _playlists[playlistIndex] = updatedPlaylist;
-                            });
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                  onLongPress: () => _showPlaylistOptions(playlist),
-                  child: Card(
-                    elevation: 4,
-                    child: Container(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            playlist.icon,
-                            size: 48,
-                            color: playlist.color,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            playlist.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${playlist.songs.length} 首歌曲',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+            child: isCardView ? _buildCardView() : _buildListView(),
           ),
         ],
       ),
+    );
+  }
+
+  // 卡片视图
+  Widget _buildCardView() {
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.2,
+        crossAxisSpacing: 16.0,
+        mainAxisSpacing: 16.0,
+      ),
+      itemCount: _playlists.length,
+      itemBuilder: (context, index) {
+        final playlist = _playlists[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PlaylistDetailScreen(
+                  playlist: playlist,
+                  onPlaylistUpdate: (updatedPlaylist) {
+                    setState(() {
+                      final playlistIndex = _playlists.indexOf(playlist);
+                      _playlists[playlistIndex] = updatedPlaylist;
+                    });
+                  },
+                ),
+              ),
+            );
+          },
+          onLongPress: () => _showPlaylistOptions(playlist),
+          child: Card(
+            elevation: 4,
+            child: Container(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    playlist.icon,
+                    size: 48,
+                    color: playlist.color,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    playlist.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${playlist.songs.length} 首歌曲',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 列表视图
+  Widget _buildListView() {
+    return ListView.builder(
+      itemCount: _playlists.length,
+      itemBuilder: (context, index) {
+        final playlist = _playlists[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8.0),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: playlist.color,
+              child: Icon(
+                playlist.icon,
+                color: Colors.white,
+              ),
+            ),
+            title: Text(
+              playlist.name,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text('${playlist.songs.length} 首歌曲'),
+            trailing: const Icon(Icons.play_arrow),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PlaylistDetailScreen(
+                    playlist: playlist,
+                    onPlaylistUpdate: (updatedPlaylist) {
+                      setState(() {
+                        final playlistIndex = _playlists.indexOf(playlist);
+                        _playlists[playlistIndex] = updatedPlaylist;
+                      });
+                    },
+                  ),
+                ),
+              );
+            },
+            onLongPress: () => _showPlaylistOptions(playlist),
+          ),
+        );
+      },
     );
   }
 

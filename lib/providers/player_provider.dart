@@ -12,6 +12,9 @@ class PlayerProvider with ChangeNotifier {
   // 播放列表
   List<Song> _playlist = [];
 
+  // 音乐库列表（所有音乐）
+  List<Song> _musicLibrary = [];
+
   // 当前播放索引
   int _currentSongIndex = -1;
 
@@ -36,6 +39,9 @@ class PlayerProvider with ChangeNotifier {
   // 用户信息
   String _userName = '用户';
   String _userAvatarPath = '';
+
+  // 歌单显示模式：true为卡片，false为列表
+  bool _playlistViewMode = true;
 
   // SharedPreferences实例
   late SharedPreferences _prefs;
@@ -111,6 +117,8 @@ class PlayerProvider with ChangeNotifier {
     _prefs = await SharedPreferences.getInstance();
     await _loadFavoriteSongs();
     await _loadUserInfo();
+    await _loadPlaylistViewMode();
+    await _loadUserPlaylists();
   }
 
   // 保存播放状态
@@ -187,6 +195,9 @@ class PlayerProvider with ChangeNotifier {
   // 获取播放列表
   List<Song> get playlist => _playlist;
 
+  // 获取音乐库列表
+  List<Song> get musicLibrary => _musicLibrary;
+
   // 获取当前歌曲
   Song? get currentSong =>
       _currentSongIndex >= 0 && _currentSongIndex < _playlist.length
@@ -220,9 +231,55 @@ class PlayerProvider with ChangeNotifier {
   String get userName => _userName;
   String get userAvatarPath => _userAvatarPath;
 
+  // 获取歌单显示模式
+  bool get playlistViewMode => _playlistViewMode;
+
+  // 歌单管理
+  List<Map<String, dynamic>> _userPlaylists = [];
+
+  // 获取用户歌单
+  List<Map<String, dynamic>> get userPlaylists => _userPlaylists;
+
   // 设置播放列表
   void setPlaylist(List<Song> songs) {
     _playlist = songs;
+    notifyListeners();
+  }
+
+  // 设置音乐库列表
+  void setMusicLibrary(List<Song> songs) {
+    _musicLibrary = songs;
+    // 如果播放列表为空或与音乐库不同，初始化为音乐库
+    if (_playlist.isEmpty || _playlist.length != _musicLibrary.length) {
+      _playlist = List.from(songs);
+    }
+    notifyListeners();
+  }
+
+  // 更新歌曲信息
+  void updateSongInfo(String songId, {String? title, String? artist, String? album, String? coverArtPath}) {
+    // 更新音乐库中的歌曲
+    final musicIndex = _musicLibrary.indexWhere((song) => song.id == songId);
+    if (musicIndex != -1) {
+      _musicLibrary[musicIndex] = _musicLibrary[musicIndex].copyWith(
+        title: title,
+        artist: artist,
+        album: album,
+        coverArtPath: coverArtPath,
+      );
+    }
+    
+    // 更新播放列表中的歌曲
+    final playlistIndex = _playlist.indexWhere((song) => song.id == songId);
+    if (playlistIndex != -1) {
+      _playlist[playlistIndex] = _playlist[playlistIndex].copyWith(
+        title: title,
+        artist: artist,
+        album: album,
+        coverArtPath: coverArtPath,
+      );
+    }
+    
     notifyListeners();
   }
 
@@ -384,6 +441,13 @@ class PlayerProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // 切换歌单显示模式
+  void togglePlaylistViewMode() {
+    _playlistViewMode = !_playlistViewMode;
+    _savePlaylistViewMode();
+    notifyListeners();
+  }
+
   // 切换歌曲喜欢状态
   void toggleFavorite(String songId) {
     if (_favoriteSongs.contains(songId)) {
@@ -447,6 +511,116 @@ class PlayerProvider with ChangeNotifier {
       _userAvatarPath = prefs.getString('user_avatar_path') ?? '';
     } catch (e) {
       print('Failed to load user info: $e');
+    }
+  }
+
+  // 保存歌单显示模式到SharedPreferences
+  Future<void> _savePlaylistViewMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('playlist_view_mode', _playlistViewMode);
+    } catch (e) {
+      print('Failed to save playlist view mode: $e');
+    }
+  }
+
+  // 从SharedPreferences加载歌单显示模式
+  Future<void> _loadPlaylistViewMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _playlistViewMode = prefs.getBool('playlist_view_mode') ?? true; // 默认为卡片模式
+    } catch (e) {
+      print('Failed to load playlist view mode: $e');
+    }
+  }
+
+  // 创建歌单
+  void createPlaylist(String name) {
+    final playlist = {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'name': name,
+      'songs': <String>[],
+      'created_at': DateTime.now().toIso8601String(),
+    };
+    _userPlaylists.add(playlist);
+    _saveUserPlaylists();
+    notifyListeners();
+  }
+
+  // 添加歌曲到用户歌单
+  void addSongToUserPlaylist(String playlistId, String songId) {
+    final playlistIndex = _userPlaylists.indexWhere((p) => p['id'] == playlistId);
+    if (playlistIndex != -1) {
+      final songs = List<String>.from(_userPlaylists[playlistIndex]['songs']);
+      if (!songs.contains(songId)) {
+        songs.add(songId);
+        _userPlaylists[playlistIndex]['songs'] = songs;
+        _saveUserPlaylists();
+        notifyListeners();
+      }
+    }
+  }
+
+  // 从用户歌单移除歌曲
+  void removeSongFromUserPlaylist(String playlistId, String songId) {
+    final playlistIndex = _userPlaylists.indexWhere((p) => p['id'] == playlistId);
+    if (playlistIndex != -1) {
+      final songs = List<String>.from(_userPlaylists[playlistIndex]['songs']);
+      songs.remove(songId);
+      _userPlaylists[playlistIndex]['songs'] = songs;
+      _saveUserPlaylists();
+      notifyListeners();
+    }
+  }
+
+  // 删除歌单
+  void deletePlaylist(String playlistId) {
+    _userPlaylists.removeWhere((p) => p['id'] == playlistId);
+    _saveUserPlaylists();
+    notifyListeners();
+  }
+
+  // 保存用户歌单到SharedPreferences
+  Future<void> _saveUserPlaylists() async {
+    try {
+      final playlistsJson = _userPlaylists.map((p) => {
+        'id': p['id'],
+        'name': p['name'],
+        'songs': p['songs'],
+        'created_at': p['created_at'],
+      }).toList();
+      
+      final playlistsString = playlistsJson.map((p) => p.toString()).join('|');
+      await _prefs.setString('user_playlists', playlistsString);
+    } catch (e) {
+      print('Failed to save user playlists: $e');
+    }
+  }
+
+  // 从SharedPreferences加载用户歌单
+  Future<void> _loadUserPlaylists() async {
+    try {
+      final playlistsString = _prefs.getString('user_playlists') ?? '';
+      if (playlistsString.isNotEmpty) {
+        final playlistsParts = playlistsString.split('|');
+        _userPlaylists = playlistsParts.map((part) {
+          // 简单解析，实际应用中建议使用JSON
+          final id = part.substring(part.indexOf('id: ') + 4, part.indexOf(','));
+          final nameStart = part.indexOf('name: ') + 6;
+          final nameEnd = part.indexOf(', songs:');
+          final name = part.substring(nameStart, nameEnd);
+          
+          return {
+            'id': id,
+            'name': name,
+            'songs': <String>[],
+            'created_at': DateTime.now().toIso8601String(),
+          };
+        }).toList();
+      }
+    } catch (e) {
+      print('Failed to load user playlists: $e');
+      _userPlaylists = [];
     }
   }
 

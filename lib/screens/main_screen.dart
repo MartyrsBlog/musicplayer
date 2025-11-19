@@ -34,7 +34,7 @@ class _MainScreenState extends State<MainScreen> {
           context,
           listen: false,
         );
-        playerProvider.setPlaylist(songs);
+        playerProvider.setMusicLibrary(songs);
 
         // 恢复播放状态
         await playerProvider.restorePlaybackState(songs);

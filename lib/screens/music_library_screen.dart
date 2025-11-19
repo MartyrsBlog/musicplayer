@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/player_provider.dart';
 import '../services/audio_manager.dart';
 import '../models/song.dart';
+import 'music_tags_screen.dart';
 import 'dart:io';
 
 class MusicLibraryScreen extends StatefulWidget {
@@ -26,7 +27,7 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
       
       if (mounted) {
         final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
-        playerProvider.setPlaylist(songs);
+        playerProvider.setMusicLibrary(songs);
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('扫描完成，找到 ${songs.length} 首歌曲')),
@@ -50,7 +51,7 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final playerProvider = Provider.of<PlayerProvider>(context);
-    final songs = playerProvider.playlist;
+    final songs = playerProvider.musicLibrary;
 
     return Scaffold(
       appBar: AppBar(
@@ -136,17 +137,80 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
                       fontWeight: isCurrentSong ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
-                  subtitle: Text('${song.artist} - ${song.album}'),
-                  trailing: Text(
-                    '${song.duration.inMinutes}:${(song.duration.inSeconds % 60).toString().padLeft(2, '0')}',
+                  subtitle: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${song.artist} - ${song.album}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${song.duration.inMinutes}:${(song.duration.inSeconds % 60).toString().padLeft(2, '0')}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  trailing: PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (value) {
+                      if (value == 'add_to_playlist') {
+                        _showPlaylistSelection(context, playerProvider, song);
+                      } else if (value == 'play') {
+                        // 确保播放列表为音乐库
+                        playerProvider.setPlaylist(playerProvider.musicLibrary);
+                        playerProvider.playSong(index);
+                      } else if (value == 'edit_tags') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MusicTagsScreen(song: song),
+                          ),
+                        );
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem<String>(
+                        value: 'play',
+                        child: Row(
+                          children: [
+                            Icon(Icons.play_arrow),
+                            SizedBox(width: 8),
+                            Text('播放歌曲'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: 'add_to_playlist',
+                        child: Row(
+                          children: [
+                            Icon(Icons.playlist_add),
+                            SizedBox(width: 8),
+                            Text('添加进歌单'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: 'edit_tags',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit),
+                            SizedBox(width: 8),
+                            Text('音乐标签'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   onTap: () {
                     // 只播放歌曲，不再跳转到独立的播放界面
+                    // 确保播放列表为音乐库
+                    playerProvider.setPlaylist(playerProvider.musicLibrary);
                     playerProvider.playSong(index);
-                  },
-                  onLongPress: () {
-                    // 长按显示选项菜单
-                    _showSongOptions(context, playerProvider, song, index);
                   },
                 );
               },
@@ -155,36 +219,91 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
     );
   }
 
-  // 显示歌曲选项菜单
-  void _showSongOptions(BuildContext context, PlayerProvider playerProvider, Song song, int index) {
-    showModalBottomSheet(
+  // 显示歌单选择对话框
+  void _showPlaylistSelection(BuildContext context, PlayerProvider playerProvider, Song song) {
+    showDialog(
       context: context,
       builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.play_arrow),
-                title: const Text('播放歌曲'),
-                onTap: () {
-                  Navigator.pop(context);
-                  playerProvider.playSong(index);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.playlist_add),
-                title: const Text('添加到播放列表'),
-                onTap: () {
-                  Navigator.pop(context);
-                  playerProvider.addSongToPlaylist(song);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('已添加到播放列表')),
-                  );
-                },
-              ),
-            ],
+        return AlertDialog(
+          title: const Text('选择歌单'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: playerProvider.userPlaylists.isEmpty
+                ? const Center(
+                    child: Text('暂无歌单，请先创建歌单'),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: playerProvider.userPlaylists.length,
+                    itemBuilder: (context, index) {
+                      final playlist = playerProvider.userPlaylists[index];
+                      return ListTile(
+                        leading: const Icon(Icons.playlist_play),
+                        title: Text(playlist['name']),
+                        subtitle: Text('${playlist['songs'].length} 首歌曲'),
+                        onTap: () {
+                          playerProvider.addSongToUserPlaylist(playlist['id'], song.id);
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('已添加到 "${playlist['name']}"')),
+                          );
+                        },
+                      );
+                    },
+                  ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showCreatePlaylistDialog(context, playerProvider, song);
+              },
+              child: const Text('创建新歌单'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 显示创建歌单对话框
+  void _showCreatePlaylistDialog(BuildContext context, PlayerProvider playerProvider, Song song) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('创建新歌单'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: '歌单名称',
+              border: OutlineInputBorder(),
+            ),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final name = controller.text.trim();
+                if (name.isNotEmpty) {
+                  playerProvider.createPlaylist(name);
+                  Navigator.pop(context);
+                  // 创建后立即显示歌单选择
+                  _showPlaylistSelection(context, playerProvider, song);
+                }
+              },
+              child: const Text('创建'),
+            ),
+          ],
         );
       },
     );
