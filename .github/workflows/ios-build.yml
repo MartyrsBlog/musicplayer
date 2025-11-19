@@ -1,0 +1,49 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.6'
+        channel: 'stable'
+        cache: true
+        
+    - name: Install Flutter dependencies
+      run: flutter pub get
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+        
+    - name: Build iOS (No codesign)
+      run: |
+        cd ios
+        flutter build ios --release --no-codesign
+        
+    - name: Create IPA
+      run: |
+        mkdir -p build/ios/ipa
+        cd build/ios/iphoneos/Runner.app
+        zip -r ../../../../build/ios/ipa/musicplayer.ipa . 
+        
+    - name: Upload IPA
+      uses: actions/upload-artifact@v4
+      with:
+        name: musicplayer-ios-ipa
+        path: build/ios/ipa/musicplayer.ipa
+        retention-days: 30
