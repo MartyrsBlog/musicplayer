@@ -1198,9 +1198,9 @@ class MusicDownloadService {
     // 确保目录存在
     if (mediaDir == null) {
       print('错误：无法确定媒体下载目录');
-      // 返回临时目录作为最后备用
-      final tempDir = Directory.systemTemp;
-      mediaDir = Directory(path.join(tempDir.path, 'music_medias'));
+      // 返回缓存目录作为最后备用
+      final cacheDir = await getCacheDirectory();
+      mediaDir = Directory(path.join(cacheDir.path, 'music_medias'));
       await mediaDir.create(recursive: true);
       return mediaDir;
     }
@@ -1211,9 +1211,9 @@ class MusicDownloadService {
         print('创建媒体下载目录成功: ${mediaDir.path}');
       } catch (e) {
         print('创建媒体下载目录失败: $e');
-        // 如果创建失败，返回临时目录
-        final tempDir = Directory.systemTemp;
-        mediaDir = Directory(path.join(tempDir.path, 'music_medias'));
+        // 如果创建失败，返回缓存目录
+        final cacheDir = await getCacheDirectory();
+        mediaDir = Directory(path.join(cacheDir.path, 'music_medias'));
         if (!await mediaDir.exists()) {
           await mediaDir.create(recursive: true);
         }
@@ -1253,9 +1253,9 @@ class MusicDownloadService {
     // 确保目录存在
     if (lyricsDir == null) {
       print('错误：无法确定歌词下载目录');
-      // 返回临时目录作为最后备用
-      final tempDir = Directory.systemTemp;
-      lyricsDir = Directory(path.join(tempDir.path, 'music_lyrics'));
+      // 返回缓存目录作为最后备用
+      final cacheDir = await getCacheDirectory();
+      lyricsDir = Directory(path.join(cacheDir.path, 'music_lyrics'));
       await lyricsDir.create(recursive: true);
       return lyricsDir;
     }
@@ -1266,9 +1266,9 @@ class MusicDownloadService {
         print('创建歌词下载目录成功: ${lyricsDir.path}');
       } catch (e) {
         print('创建歌词下载目录失败: $e');
-        // 如果创建失败，返回临时目录
-        final tempDir = Directory.systemTemp;
-        lyricsDir = Directory(path.join(tempDir.path, 'music_lyrics'));
+        // 如果创建失败，返回缓存目录
+        final cacheDir = await getCacheDirectory();
+        lyricsDir = Directory(path.join(cacheDir.path, 'music_lyrics'));
         if (!await lyricsDir.exists()) {
           await lyricsDir.create(recursive: true);
         }
@@ -1381,6 +1381,61 @@ class MusicDownloadService {
     } catch (e) {
       print('嵌入封面时出错: $e');
       return false;
+    }
+  }
+
+  // 获取应用缓存目录
+  static Future<Directory> getCacheDirectory() async {
+    try {
+      final cacheDir = await getTemporaryDirectory();
+      print('应用缓存目录: ${cacheDir.path}');
+      return cacheDir;
+    } catch (e) {
+      print('获取缓存目录失败: $e');
+      // 如果获取失败，使用系统临时目录作为备用
+      return Directory.systemTemp;
+    }
+  }
+
+  // 获取临时封面文件路径
+  static Future<String> getTempCoverPath() async {
+    final cacheDir = await getCacheDirectory();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return '${cacheDir.path}/temp_cover_$timestamp.jpg';
+  }
+
+  // 删除临时文件
+  static Future<void> deleteTempFile(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (await file.exists()) {
+        await file.delete();
+        print('已删除临时文件: $filePath');
+      }
+    } catch (e) {
+      print('删除临时文件失败: $filePath, 错误: $e');
+    }
+  }
+
+  // 清理过期的临时封面文件（超过1小时）
+  static Future<void> cleanupOldTempCovers() async {
+    try {
+      final cacheDir = await getCacheDirectory();
+      final now = DateTime.now();
+      
+      await for (final entity in cacheDir.list()) {
+        if (entity is File && entity.path.contains('temp_cover_')) {
+          final stat = await entity.stat();
+          final age = now.difference(stat.modified);
+          
+          if (age.inHours > 1) {
+            await entity.delete();
+            print('已清理过期临时文件: ${entity.path}');
+          }
+        }
+      }
+    } catch (e) {
+      print('清理过期临时文件失败: $e');
     }
   }
 }

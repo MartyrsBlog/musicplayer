@@ -54,6 +54,7 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
     final songs = playerProvider.musicLibrary;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFFFFFFF), // 设置为白色背景
       appBar: AppBar(
         actions: [
           IconButton(

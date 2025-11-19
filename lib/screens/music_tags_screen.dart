@@ -305,6 +305,7 @@ class _MusicTagsScreenState extends State<MusicTagsScreen> {
   late TextEditingController _albumController;
   late File? _coverArtFile;
   bool _isSaving = false;
+  String? _tempCoverPath; // 跟踪临时封面文件路径
 
   @override
   void initState() {
@@ -320,6 +321,12 @@ class _MusicTagsScreenState extends State<MusicTagsScreen> {
     _titleController.dispose();
     _artistController.dispose();
     _albumController.dispose();
+    
+    // 清理临时文件
+    if (_tempCoverPath != null) {
+      MusicDownloadService.deleteTempFile(_tempCoverPath!);
+    }
+    
     super.dispose();
   }
 
@@ -417,6 +424,8 @@ class _MusicTagsScreenState extends State<MusicTagsScreen> {
       ),
     );
 
+    String? coverPath;
+    
     try {
       // 获取下载信息
       final info = await MusicDownloadService.getDownloadInfo(songId);
@@ -430,15 +439,14 @@ class _MusicTagsScreenState extends State<MusicTagsScreen> {
         return;
       }
 
-      // 获取临时目录
-      final tempDir = Directory.systemTemp;
-      final coverPath = '${tempDir.path}/temp_cover_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      // 获取缓存目录中的临时封面路径
+      coverPath = await MusicDownloadService.getTempCoverPath();
 
       // 下载封面图
       final success = await MusicDownloadService.downloadCoverArtDirect(
         info.pic!,
         songName,
-        tempDir,
+        File(coverPath).parent,
         coverPath,
       );
 
@@ -446,7 +454,8 @@ class _MusicTagsScreenState extends State<MusicTagsScreen> {
 
       if (success && mounted) {
         setState(() {
-          _coverArtFile = File(coverPath);
+          _coverArtFile = File(coverPath!);
+          _tempCoverPath = coverPath!; // 保存临时文件路径以便后续清理
         });
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -501,6 +510,12 @@ class _MusicTagsScreenState extends State<MusicTagsScreen> {
           album: _albumController.text.trim(),
           coverArtPath: _coverArtFile?.path,
         );
+        
+        // 删除临时封面文件
+        if (_tempCoverPath != null) {
+          await MusicDownloadService.deleteTempFile(_tempCoverPath!);
+          _tempCoverPath = null;
+        }
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

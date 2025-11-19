@@ -21,10 +21,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final playerProvider = Provider.of<PlayerProvider>(context);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFFFFFFF), // 设置为白色背景
       appBar: AppBar(
         title: const Text('设置'),
+        backgroundColor: const Color(0xFFFFFFFF), // 设置为白色背景
+        foregroundColor: const Color(0xFF1F2937), // 设置文字颜色为深灰色
+        elevation: 0, // 移除阴影
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1F2937)),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -39,9 +43,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Consumer<PlayerProvider>(
               builder: (context, playerProvider, child) {
                 return Card(
+                  color: const Color(0xFFFFFFFF), // 设置卡片背景为白色
+                  elevation: 2,
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: Theme.of(context).primaryColor,
+                      backgroundColor: const Color(0xFF60A5FA), // 天蓝色背景
                       child: playerProvider.userAvatarPath.isNotEmpty
                           ? ClipOval(
                               child: Image.file(
@@ -59,10 +65,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w500,
+                        color: Color(0xFF1F2937),
                       ),
                     ),
-                    subtitle: const Text('点击编辑个人信息'),
-                    trailing: const Icon(Icons.edit),
+                    subtitle: const Text('点击编辑个人信息', style: TextStyle(color: Color(0xFF6B7280))),
+                    trailing: const Icon(Icons.edit, color: Color(0xFF60A5FA)),
                     onTap: () {
                       _showUserSettingsDialog();
                     },
@@ -73,28 +80,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             
             const SizedBox(height: 20),
             
-            // 夜间模式切换
-            Card(
-              child: ListTile(
-                title: const Text('夜间模式'),
-                trailing: Switch(
-                  value: playerProvider.isDarkMode,
-                  onChanged: (value) {
-                    playerProvider.toggleDarkMode();
-                  },
-                ),
-              ),
-            ),
-            
             const SizedBox(height: 20),
             
             // 添加音乐文件夹（仅在桌面平台显示）
             if (Platform.isLinux || Platform.isWindows || Platform.isMacOS)
               Card(
+                color: const Color(0xFFFFFFFF), // 设置卡片背景为白色
+                elevation: 2,
                 child: ListTile(
-                  title: const Text('添加音乐文件夹'),
-                  subtitle: const Text('选择包含音乐的文件夹'),
-                  trailing: const Icon(Icons.add),
+                  title: const Text('添加音乐文件夹', style: TextStyle(color: Color(0xFF1F2937))),
+                  subtitle: const Text('选择包含音乐的文件夹', style: TextStyle(color: Color(0xFF6B7280))),
+                  trailing: const Icon(Icons.add, color: Color(0xFF60A5FA)),
                   onTap: () {
                     _pickMusicFolder();
                   },
@@ -107,10 +103,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // 权限设置（仅在移动平台显示）
             if (Platform.isAndroid || Platform.isIOS)
               Card(
+                color: const Color(0xFFFFFFFF), // 设置卡片背景为白色
+                elevation: 2,
                 child: ListTile(
-                  title: const Text('权限设置'),
-                  subtitle: const Text('检查和管理应用权限'),
-                  trailing: const Icon(Icons.security),
+                  title: const Text('权限设置', style: TextStyle(color: Color(0xFF1F2937))),
+                  subtitle: const Text('检查和管理应用权限', style: TextStyle(color: Color(0xFF6B7280))),
+                  trailing: const Icon(Icons.security, color: Color(0xFF60A5FA)),
                   onTap: () {
                     _checkPermissions();
                   },
@@ -122,10 +120,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             
             // 关于
             Card(
+              color: const Color(0xFFFFFFFF), // 设置卡片背景为白色
+              elevation: 2,
               child: ListTile(
-                title: const Text('关于音乐播放器'),
-                subtitle: const Text('版本 1.0.0'),
-                trailing: const Icon(Icons.info),
+                title: const Text('关于音乐播放器', style: TextStyle(color: Color(0xFF1F2937))),
+                subtitle: const Text('版本 1.0.0', style: TextStyle(color: Color(0xFF6B7280))),
+                trailing: const Icon(Icons.info, color: Color(0xFF60A5FA)),
                 onTap: () {
                   _showAboutDialog();
                 },
@@ -331,7 +331,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             '功能特点：\n'
             '• 支持多种音频格式\n'
             '• 简洁的用户界面\n'
-            '• 夜间模式支持\n'
             '• 歌词同步显示\n\n'
             '版本：1.0.0',
           ),

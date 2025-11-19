@@ -46,7 +46,8 @@ class _CoverSearchDialogState extends State<_CoverSearchDialog> {
   void initState() {
     super.initState();
     // 如果有初始搜索查询，自动填充并搜索
-    if (widget.initialSearchQuery != null && widget.initialSearchQuery!.isNotEmpty) {
+    if (widget.initialSearchQuery != null &&
+        widget.initialSearchQuery!.isNotEmpty) {
       searchController.text = widget.initialSearchQuery!;
       // 延迟执行搜索，确保UI已经完全加载
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -71,11 +72,13 @@ class _CoverSearchDialogState extends State<_CoverSearchDialog> {
     });
 
     try {
-      final results = await MusicDownloadService.searchMusic(searchController.text.trim());
+      final results = await MusicDownloadService.searchMusic(
+        searchController.text.trim(),
+      );
       final coverResults = <CoverSearchResult>[];
-      
+
       print('开始获取 ${results.length} 首歌曲的封面信息，只取前4条');
-      
+
       // 获取前4个搜索结果的封面信息
       for (final result in results.take(4)) {
         try {
@@ -83,12 +86,14 @@ class _CoverSearchDialogState extends State<_CoverSearchDialog> {
           final info = await MusicDownloadService.getDownloadInfo(result.id);
           if (info != null && info.pic != null && info.pic!.isNotEmpty) {
             print('找到封面: ${info.pic}');
-            coverResults.add(CoverSearchResult(
-              id: result.id,
-              name: result.name,
-              singer: result.singer,
-              coverUrl: info.pic!,
-            ));
+            coverResults.add(
+              CoverSearchResult(
+                id: result.id,
+                name: result.name,
+                singer: result.singer,
+                coverUrl: info.pic!,
+              ),
+            );
           } else {
             print('歌曲 ${result.name} 没有封面信息');
           }
@@ -96,21 +101,21 @@ class _CoverSearchDialogState extends State<_CoverSearchDialog> {
           print('获取歌曲 ${result.name} 封面信息失败: $e');
         }
       }
-      
+
       setState(() {
         searchResults = coverResults;
         isSearching = false;
       });
-      
+
       print('搜索完成，找到 ${coverResults.length} 个封面');
     } catch (e) {
       setState(() {
         isSearching = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('搜索失败: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('搜索失败: $e')));
       }
     }
   }
@@ -139,7 +144,7 @@ class _CoverSearchDialogState extends State<_CoverSearchDialog> {
               onSubmitted: (_) => _performSearch(),
             ),
             const SizedBox(height: 16),
-            
+
             // 搜索按钮
             SizedBox(
               width: double.infinity,
@@ -162,9 +167,9 @@ class _CoverSearchDialogState extends State<_CoverSearchDialog> {
                     : const Text('搜索'),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // 搜索结果
             Expanded(
               child: !hasSearched
@@ -175,104 +180,123 @@ class _CoverSearchDialogState extends State<_CoverSearchDialog> {
                       ),
                     )
                   : searchResults.isEmpty
-                      ? const Center(
-                          child: Text(
-                            '未找到相关封面',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        )
-                      : GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  ? const Center(
+                      child: Text(
+                        '未找到相关封面',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : GridView.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
                             childAspectRatio: 0.8,
                             crossAxisSpacing: 10,
                             mainAxisSpacing: 10,
                           ),
-                          itemCount: searchResults.length,
-                          itemBuilder: (context, index) {
-                            final result = searchResults[index];
-                            return Card(
-                              elevation: 4,
-                              child: InkWell(
-                                onTap: () => widget.onCoverSelected(result.id, result.name),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // 封面图片
-                                    Expanded(
-                                      flex: 3,
-                                      child: Container(
-                                        width: double.infinity,
-                                        decoration: const BoxDecoration(
-                                          borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                                          child: Image.network(
-                                            result.coverUrl,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) {
+                      itemCount: searchResults.length,
+                      itemBuilder: (context, index) {
+                        final result = searchResults[index];
+                        return Card(
+                          elevation: 4,
+                          child: InkWell(
+                            onTap: () =>
+                                widget.onCoverSelected(result.id, result.name),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 封面图片
+                                Expanded(
+                                  flex: 3,
+                                  child: Container(
+                                    width: double.infinity,
+                                    decoration: const BoxDecoration(
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(4),
+                                      ),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(4),
+                                      ),
+                                      child: Image.network(
+                                        result.coverUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
                                               return Container(
                                                 color: Colors.grey[300],
                                                 child: const Center(
-                                                  child: Icon(Icons.album, size: 40, color: Colors.grey),
-                                                ),
-                                              );
-                                            },
-                                            loadingBuilder: (context, child, loadingProgress) {
-                                              if (loadingProgress == null) return child;
-                                              return Container(
-                                                color: Colors.grey[200],
-                                                child: Center(
-                                                  child: CircularProgressIndicator(
-                                                    value: loadingProgress.expectedTotalBytes != null
-                                                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                                        : null,
+                                                  child: Icon(
+                                                    Icons.album,
+                                                    size: 40,
+                                                    color: Colors.grey,
                                                   ),
                                                 ),
                                               );
                                             },
-                                          ),
-                                        ),
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null)
+                                            return child;
+                                          return Container(
+                                            color: Colors.grey[200],
+                                            child: Center(
+                                              child: CircularProgressIndicator(
+                                                value:
+                                                    loadingProgress
+                                                            .expectedTotalBytes !=
+                                                        null
+                                                    ? loadingProgress
+                                                              .cumulativeBytesLoaded /
+                                                          loadingProgress
+                                                              .expectedTotalBytes!
+                                                    : null,
+                                              ),
+                                            ),
+                                          );
+                                        },
                                       ),
                                     ),
-                                    // 歌曲信息
-                                    Expanded(
-                                      flex: 1,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              result.name,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              result.singer,
-                                              style: const TextStyle(
-                                                fontSize: 10,
-                                                color: Colors.grey,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                                // 歌曲信息
+                                Expanded(
+                                  flex: 1,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          result.name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          result.singer,
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -295,24 +319,24 @@ class CustomLyricUI extends LyricUI {
 
   @override
   TextStyle getPlayingMainTextStyle() => TextStyle(
-    color: Theme.of(context).colorScheme.primary,
+    color: const Color(0xFF1F2937), // 黑色
     fontSize: 18,
     fontWeight: FontWeight.bold,
   );
 
   @override
   TextStyle getOtherMainTextStyle() => TextStyle(
-    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+    color: const Color(0xFF9CA3AF), // 灰色
     fontSize: 16,
   );
 
   @override
   TextStyle getPlayingExtTextStyle() =>
-      TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 16);
+      const TextStyle(color: Color(0xFF1F2937), fontSize: 16); // 黑色
 
   @override
-  TextStyle getOtherExtTextStyle() => TextStyle(
-    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+  TextStyle getOtherExtTextStyle() => const TextStyle(
+    color: Color(0xFF6B7280), // 灰色
     fontSize: 14,
   );
 
@@ -354,6 +378,9 @@ class _MusicScreenState extends State<MusicScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
+  // 跟踪临时封面文件路径
+  String? _tempCoverPath;
+
   @override
   void initState() {
     super.initState();
@@ -371,6 +398,12 @@ class _MusicScreenState extends State<MusicScreen>
   @override
   void dispose() {
     _animationController.dispose();
+
+    // 清理临时文件
+    if (_tempCoverPath != null) {
+      MusicDownloadService.deleteTempFile(_tempCoverPath!);
+    }
+
     super.dispose();
   }
 
@@ -392,6 +425,7 @@ class _MusicScreenState extends State<MusicScreen>
     final currentSong = playerProvider.currentSong;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFFFFFFF), // 设置为白色背景
       body: currentSong == null
           ? const Center(child: Text('没有正在播放的歌曲'))
           : Stack(
@@ -440,7 +474,7 @@ class _MusicScreenState extends State<MusicScreen>
     return Expanded(
       child: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(32.0),
+          padding: const EdgeInsets.fromLTRB(32.0, 140.0, 32.0, 32.0),
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -488,8 +522,6 @@ class _MusicScreenState extends State<MusicScreen>
                     ),
                   ),
                 ),
-
-                
               ],
             ),
           ),
@@ -501,7 +533,7 @@ class _MusicScreenState extends State<MusicScreen>
   // 构建歌词界面
   Widget _buildLyricsScreen(Song song, PlayerProvider playerProvider) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: const Color(0xFFFFFFFF), // 设置为白色背景
       body: SafeArea(
         child: Column(
           children: [
@@ -617,7 +649,10 @@ class _MusicScreenState extends State<MusicScreen>
   }
 
   // 显示歌词跳转对话框
-  void _showLyricJumpDialog(BuildContext context, PlayerProvider playerProvider) {
+  void _showLyricJumpDialog(
+    BuildContext context,
+    PlayerProvider playerProvider,
+  ) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -693,7 +728,7 @@ class _MusicScreenState extends State<MusicScreen>
     if (lyricsModel != null) {
       final lyrics = lyricsModel.lyrics;
       final currentPosition = playerProvider.lyricsPosition;
-      
+
       // 找到当前歌词位置的前一句
       for (int i = lyrics.length - 1; i >= 0; i--) {
         final startTime = lyrics[i].startTime;
@@ -712,7 +747,7 @@ class _MusicScreenState extends State<MusicScreen>
     if (lyricsModel != null) {
       final lyrics = lyricsModel.lyrics;
       final currentPosition = playerProvider.lyricsPosition;
-      
+
       // 找到当前歌词位置的下一句
       for (int i = 0; i < lyrics.length; i++) {
         final startTime = lyrics[i].startTime;
@@ -853,8 +888,6 @@ class _MusicScreenState extends State<MusicScreen>
     }
   }
 
-  
-
   // 显示播放列表BottomSheet
   void _showPlaylistBottomSheet(
     BuildContext context,
@@ -895,23 +928,24 @@ class _MusicScreenState extends State<MusicScreen>
               if (currentSong != null) {
                 final wasFavorite = playerProvider.isFavorite(currentSong.id);
                 playerProvider.toggleFavorite(currentSong.id);
-                
+
                 // 显示提示信息
                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      wasFavorite 
-                          ? '已从"我的喜欢"中移除' 
-                          : '已添加到"我的喜欢"',
-                    ),
+                    content: Text(wasFavorite ? '已从"我的喜欢"中移除' : '已添加到"我的喜欢"'),
                     duration: const Duration(seconds: 2),
-                    action: wasFavorite ? null : SnackBarAction(
-                      label: '查看歌单',
-                      onPressed: () {
-                        Navigator.popUntil(context, (route) => route.isFirst);
-                      },
-                    ),
+                    action: wasFavorite
+                        ? null
+                        : SnackBarAction(
+                            label: '查看歌单',
+                            onPressed: () {
+                              Navigator.popUntil(
+                                context,
+                                (route) => route.isFirst,
+                              );
+                            },
+                          ),
                   ),
                 );
               }
@@ -920,7 +954,8 @@ class _MusicScreenState extends State<MusicScreen>
               Icons.favorite,
               color: () {
                 final currentSong = playerProvider.currentSong;
-                return currentSong != null && playerProvider.isFavorite(currentSong.id)
+                return currentSong != null &&
+                        playerProvider.isFavorite(currentSong.id)
                     ? Colors.red
                     : Theme.of(context).colorScheme.onSurface;
               }(),
@@ -988,9 +1023,9 @@ class _MusicScreenState extends State<MusicScreen>
                   const SizedBox(width: 48), // 平衡布局
                 ],
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // 选项列表
               ListTile(
                 leading: const Icon(Icons.playlist_add),
@@ -1008,7 +1043,11 @@ class _MusicScreenState extends State<MusicScreen>
   }
 
   // 显示歌单选择对话框
-  void _showPlaylistSelection(BuildContext context, PlayerProvider playerProvider, Song song) {
+  void _showPlaylistSelection(
+    BuildContext context,
+    PlayerProvider playerProvider,
+    Song song,
+  ) {
     showDialog(
       context: context,
       builder: (context) {
@@ -1017,9 +1056,7 @@ class _MusicScreenState extends State<MusicScreen>
           content: SizedBox(
             width: double.maxFinite,
             child: playerProvider.userPlaylists.isEmpty
-                ? const Center(
-                    child: Text('暂无歌单，请先创建歌单'),
-                  )
+                ? const Center(child: Text('暂无歌单，请先创建歌单'))
                 : ListView.builder(
                     shrinkWrap: true,
                     itemCount: playerProvider.userPlaylists.length,
@@ -1030,10 +1067,15 @@ class _MusicScreenState extends State<MusicScreen>
                         title: Text(playlist['name']),
                         subtitle: Text('${playlist['songs'].length} 首歌曲'),
                         onTap: () {
-                          playerProvider.addSongToUserPlaylist(playlist['id'], song.id);
+                          playerProvider.addSongToUserPlaylist(
+                            playlist['id'],
+                            song.id,
+                          );
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('已添加到 "${playlist['name']}"')),
+                            SnackBar(
+                              content: Text('已添加到 "${playlist['name']}"'),
+                            ),
                           );
                         },
                       );
@@ -1059,7 +1101,11 @@ class _MusicScreenState extends State<MusicScreen>
   }
 
   // 显示创建歌单对话框
-  void _showCreatePlaylistDialog(BuildContext context, PlayerProvider playerProvider, Song song) {
+  void _showCreatePlaylistDialog(
+    BuildContext context,
+    PlayerProvider playerProvider,
+    Song song,
+  ) {
     final controller = TextEditingController();
     showDialog(
       context: context,
@@ -1144,20 +1190,25 @@ class _MusicScreenState extends State<MusicScreen>
       final info = await MusicDownloadService.getDownloadInfo('dummy_id');
       if (info == null) {
         // 如果无法通过ID获取，尝试通过歌曲标题搜索
-        final searchResults = await MusicDownloadService.searchMusic(song.title);
+        final searchResults = await MusicDownloadService.searchMusic(
+          song.title,
+        );
         if (searchResults.isNotEmpty) {
           final firstResult = searchResults.first;
-          final downloadInfo = await MusicDownloadService.getDownloadInfo(firstResult.id);
+          final downloadInfo = await MusicDownloadService.getDownloadInfo(
+            firstResult.id,
+          );
           if (downloadInfo != null && downloadInfo.lkid.isNotEmpty) {
-            final lyricsDir = await MusicDownloadService.getLyricsDownloadDirectory();
+            final lyricsDir =
+                await MusicDownloadService.getLyricsDownloadDirectory();
             final success = await MusicDownloadService.downloadLyrics(
               downloadInfo.lkid,
               song.title,
               lyricsDir,
             );
-            
+
             Navigator.pop(context); // 关闭加载对话框
-            
+
             if (success) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -1181,9 +1232,9 @@ class _MusicScreenState extends State<MusicScreen>
       }
     } catch (e) {
       Navigator.pop(context); // 关闭加载对话框
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('搜索歌词失败: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('搜索歌词失败: $e')));
     }
   }
 
@@ -1208,20 +1259,21 @@ class _MusicScreenState extends State<MusicScreen>
       if (info == null || info.pic == null || info.pic!.isEmpty) {
         Navigator.pop(context);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('该歌曲没有可用的封面图')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('该歌曲没有可用的封面图')));
         }
         return;
       }
 
-      final tempDir = Directory.systemTemp;
-      final coverPath = '${tempDir.path}/temp_cover_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      // 获取缓存目录中的临时封面路径
+      final coverPath = await MusicDownloadService.getTempCoverPath();
+      _tempCoverPath = coverPath; // 保存临时文件路径以便后续清理
 
       final success = await MusicDownloadService.downloadCoverArtDirect(
         info.pic!,
         songName,
-        tempDir,
+        File(coverPath).parent,
         coverPath,
       );
 
@@ -1234,33 +1286,36 @@ class _MusicScreenState extends State<MusicScreen>
             backgroundColor: Colors.green,
           ),
         );
+
+        // 延迟删除临时文件，给用户足够时间查看成功消息
+        Future.delayed(const Duration(seconds: 5), () {
+          if (_tempCoverPath != null) {
+            MusicDownloadService.deleteTempFile(_tempCoverPath!);
+            _tempCoverPath = null;
+          }
+        });
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('封面图下载失败'),
-            backgroundColor: Colors.red,
-          ),
+          const SnackBar(content: Text('封面图下载失败'), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
       Navigator.pop(context);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('下载失败: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('下载失败: $e')));
       }
     }
   }
 
-// 格式化时间显示
+  // 格式化时间显示
   String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 }
-
-
 
 // 播放列表BottomSheet组件
 class PlaylistBottomSheet extends StatelessWidget {
@@ -1353,13 +1408,23 @@ class PlaylistBottomSheet extends StatelessWidget {
                                     errorBuilder: (context, error, stackTrace) {
                                       return Container(
                                         color: isCurrentSong
-                                            ? Theme.of(context).colorScheme.primary
-                                            : Theme.of(context).colorScheme.surface,
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.surface,
                                         child: Icon(
-                                          isCurrentSong ? Icons.play_arrow : Icons.music_note,
+                                          isCurrentSong
+                                              ? Icons.play_arrow
+                                              : Icons.music_note,
                                           color: isCurrentSong
-                                              ? Theme.of(context).colorScheme.onPrimary
-                                              : Theme.of(context).colorScheme.onSurface,
+                                              ? Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary
+                                              : Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurface,
                                           size: 20,
                                         ),
                                       );
@@ -1370,10 +1435,16 @@ class PlaylistBottomSheet extends StatelessWidget {
                                         ? Theme.of(context).colorScheme.primary
                                         : Theme.of(context).colorScheme.surface,
                                     child: Icon(
-                                      isCurrentSong ? Icons.play_arrow : Icons.music_note,
+                                      isCurrentSong
+                                          ? Icons.play_arrow
+                                          : Icons.music_note,
                                       color: isCurrentSong
-                                          ? Theme.of(context).colorScheme.onPrimary
-                                          : Theme.of(context).colorScheme.onSurface,
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
                                       size: 20,
                                     ),
                                   ),

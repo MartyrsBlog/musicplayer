@@ -187,9 +187,9 @@ class _DownloadScreenState extends State<DownloadScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<PlayerProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFFFFFFF), // 设置为白色背景
       body: SafeArea(
         child: Column(
         children: [
@@ -197,7 +197,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
           Expanded(
             flex: 0,
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.only(left: 16.0, top: 16.0, right: 16.0, bottom: 16.0), // 添加顶部padding
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -207,12 +207,15 @@ class _DownloadScreenState extends State<DownloadScreen> {
                     decoration: InputDecoration(
                       labelText: '搜索音乐',
                       hintText: '输入歌手名或歌曲名',
-                      prefixIcon: const Icon(Icons.search),
+                      prefixIcon: const Icon(Icons.search, color: Color(0xFF60A5FA)), // 天蓝色搜索图标
                       suffixIcon: IconButton(
-                        icon: const Icon(Icons.clear),
+                        icon: const Icon(Icons.clear, color: Color(0xFF9CA3AF)), // 灰色清除图标
                         onPressed: () => _searchController.clear(),
                       ),
                       border: const OutlineInputBorder(),
+                      focusedBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFF60A5FA)), // 天蓝色聚焦边框
+                      ),
                       isDense: true, // 使输入框更紧凑
                     ),
                     onSubmitted: (_) => _searchMusic(),
@@ -223,6 +226,14 @@ class _DownloadScreenState extends State<DownloadScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF60A5FA), // 天蓝色背景
+                        foregroundColor: Colors.white, // 白色文字
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
                       onPressed: _isSearching ? null : _searchMusic,
                       child: _isSearching
                           ? const Row(
@@ -248,7 +259,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                        color: const Color(0xFF424242),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(

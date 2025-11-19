@@ -76,6 +76,7 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFFFFFFFF), // 设置为白色背景
       body: _buildBody(),
       bottomNavigationBar: Consumer<PlayerProvider>(
         builder: (context, playerProvider, child) {
@@ -102,9 +103,12 @@ class _MainScreenState extends State<MainScreen> {
                 });
               }
             },
+            selectedItemColor: const Color(0xFF1F2937), // 选中项文字颜色为高亮黑色
+            unselectedItemColor: const Color(0xFF9CA3AF), // 未选中项文字颜色为灰色
+            type: BottomNavigationBarType.fixed, // 固定类型，确保文字始终显示
             items: [
               const BottomNavigationBarItem(
-                icon: Icon(Icons.library_music),
+                icon: SizedBox.shrink(), // 移除图标
                 label: '音乐库',
               ),
               BottomNavigationBarItem(
@@ -125,7 +129,7 @@ class _MainScreenState extends State<MainScreen> {
                 label: '', // 音乐标签不显示文字
               ),
               const BottomNavigationBarItem(
-                icon: Icon(Icons.person),
+                icon: SizedBox.shrink(), // 移除图标
                 label: '我的',
               ),
             ],

@@ -21,8 +21,7 @@ class PlayerProvider with ChangeNotifier {
   // 是否正在播放
   bool _isPlaying = false;
 
-  // 是否为夜间模式
-  bool _isDarkMode = false;
+  
 
   // 是否已初始化
   bool _isInitialized = false;
@@ -39,6 +38,7 @@ class PlayerProvider with ChangeNotifier {
   // 用户信息
   String _userName = '用户';
   String _userAvatarPath = '';
+  String _userBackgroundPath = '';
 
   // 歌单显示模式：true为卡片，false为列表
   bool _playlistViewMode = true;
@@ -211,8 +211,7 @@ class PlayerProvider with ChangeNotifier {
   // 获取播放状态
   bool get isPlaying => _isPlaying;
 
-  // 获取夜间模式状态
-  bool get isDarkMode => _isDarkMode;
+  
 
   // 获取歌词模型
   LyricsReaderModel? get lyricsModel => _lyricsModel;
@@ -231,6 +230,7 @@ class PlayerProvider with ChangeNotifier {
   // 获取用户信息
   String get userName => _userName;
   String get userAvatarPath => _userAvatarPath;
+  String get userBackgroundPath => _userBackgroundPath;
 
   // 获取歌单显示模式
   bool get playlistViewMode => _playlistViewMode;
@@ -418,27 +418,13 @@ class PlayerProvider with ChangeNotifier {
     }
   }
 
-  // 切换夜间模式
-  void toggleDarkMode() {
-    _isDarkMode = !_isDarkMode;
-    _saveSettings();
-    notifyListeners();
-  }
-
-  // 保存设置到SharedPreferences
-  Future<void> _saveSettings() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('is_dark_mode', _isDarkMode);
-    } catch (e) {
-      print('Failed to save settings: $e');
-    }
-  }
+  
 
   // 设置用户信息
-  void setUserInfo({String? userName, String? avatarPath}) {
+  void setUserInfo({String? userName, String? avatarPath, String? backgroundPath}) {
     if (userName != null) _userName = userName;
     if (avatarPath != null) _userAvatarPath = avatarPath;
+    if (backgroundPath != null) _userBackgroundPath = backgroundPath;
     _saveUserInfo();
     notifyListeners();
   }
@@ -500,6 +486,7 @@ class PlayerProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_name', _userName);
       await prefs.setString('user_avatar_path', _userAvatarPath);
+      await prefs.setString('user_background_path', _userBackgroundPath);
     } catch (e) {
       print('Failed to save user info: $e');
     }
@@ -511,6 +498,7 @@ class PlayerProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _userName = prefs.getString('user_name') ?? '用户';
       _userAvatarPath = prefs.getString('user_avatar_path') ?? '';
+      _userBackgroundPath = prefs.getString('user_background_path') ?? '';
     } catch (e) {
       print('Failed to load user info: $e');
     }
