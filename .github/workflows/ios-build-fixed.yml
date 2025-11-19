@@ -31,14 +31,22 @@ jobs:
         
     - name: Copy Source Files
       run: |
-        # 使用绝对路径复制源代码
-        cp -r /Users/runner/work/musicplayer/lib ios/musicplayer/
-        cp -r /Users/runner/work/musicplayer/assets ios/musicplayer/
-        cp /Users/runner/work/musicplayer/pubspec.yaml ios/musicplayer/
-        if [ -d "/Users/runner/work/musicplayer/test" ]; then cp -r /Users/runner/work/musicplayer/test ios/musicplayer/; fi
-        if [ -d "/Users/runner/work/musicplayer/web" ]; then cp -r /Users/runner/work/musicplayer/web ios/musicplayer/; fi
-        if [ -d "/Users/runner/work/musicplayer/.dart_tool" ]; then cp -r /Users/runner/work/musicplayer/.dart_tool/ ios/musicplayer/; fi
-        if [ -f "/Users/runner/work/musicplayer/analysis_options.yaml" ]; then cp /Users/runner/work/musicplayer/analysis_options.yaml ios/musicplayer/; fi
+        # 显示当前目录结构来调试路径问题
+        pwd
+        ls -la
+        echo "=== 检查工作目录 ==="
+        ls -la /Users/runner/work/
+        echo "=== 检查项目目录 ==="
+        ls -la /Users/runner/work/musicplayer/
+        
+        # 使用相对路径从项目根目录复制
+        cp -r lib ios/musicplayer/
+        cp -r assets ios/musicplayer/
+        cp pubspec.yaml ios/musicplayer/
+        if [ -d "test" ]; then cp -r test ios/musicplayer/; fi
+        if [ -d "web" ]; then cp -r web ios/musicplayer/; fi
+        if [ -d ".dart_tool" ]; then cp -r .dart_tool/ ios/musicplayer/; fi
+        if [ -f "analysis_options.yaml" ]; then cp analysis_options.yaml ios/musicplayer/; fi
         
     - name: Install CocoaPods
       run: |
