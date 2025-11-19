@@ -35,9 +35,16 @@ jobs:
       with:
         xcode-version: '16.4.0'
         
-    - name: Build iOS (No codesign)
+    - name: Clean and Build iOS (No codesign)
       run: |
         cd ios
+        # 清理之前的构建
+        flutter clean
+        rm -rf Pods Podfile.lock
+        # 重新安装依赖
+        flutter pub get
+        pod install --repo-update
+        # 构建
         flutter build ios --release --no-codesign
         
     - name: Create IPA
