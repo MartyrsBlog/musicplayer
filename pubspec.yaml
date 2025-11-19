@@ -39,6 +39,7 @@ dependencies:
   just_audio: ^0.9.36
   just_audio_media_kit: ^2.1.0
   media_kit_libs_linux: any
+  audio_session: ^0.1.21
   
   # Lyrics display
   flutter_lyric: ^2.0.4
