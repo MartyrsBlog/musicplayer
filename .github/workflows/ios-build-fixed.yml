@@ -26,7 +26,12 @@ jobs:
         
     - name: Setup iOS Project
       run: |
+        # 确保在正确的目录
+        pwd
+        ls -la
         cd ios
+        pwd
+        ls -la
         # 确保目标目录存在
         mkdir -p musicplayer
         # 直接使用现有的 iOS 项目，创建一个简化的项目结构
