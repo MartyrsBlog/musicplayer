@@ -45,11 +45,7 @@ jobs:
         # 回到根目录重新获取依赖
         cd ..
         flutter pub get
-        # 预先移除 audio_session 引用，避免构建错误
-        sed -i '' '/audio_session/,/#endif/d' ios/Runner/GeneratedPluginRegistrant.m
-        # 同时移除注册方法中的 AudioSessionPlugin 引用
-        sed -i '' '/AudioSessionPlugin/d' ios/Runner/GeneratedPluginRegistrant.m
-        # 构建
+        # 构建 iOS 应用（已配置 Podfile 处理 audio_session）
         flutter build ios --release --no-codesign
         
     - name: Create IPA
@@ -57,6 +53,11 @@ jobs:
         mkdir -p build/ios/ipa
         cd build/ios/iphoneos/Runner.app
         zip -r ../../../../build/ios/ipa/musicplayer.ipa . 
+        
+    - name: Verify IPA
+      run: |
+        ls -la build/ios/ipa/
+        file build/ios/ipa/musicplayer.ipa 
         
     - name: Upload IPA
       uses: actions/upload-artifact@v4
