@@ -36,7 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   
   # Audio playback
-  just_audio: ^0.9.36
+  just_audio: ^0.10.5
+  audio_session: ^0.2.2
   just_audio_media_kit: ^2.1.0
   media_kit_libs_linux: any
   
