@@ -52,7 +52,7 @@ import re
 
 # 读取文件
 with open('ios/Runner/GeneratedPluginRegistrant.m', 'r') as f:
-    content = f.read()
+  content = f.read()
 
 # 移除 audio_session 相关的所有内容
 # 使用正则表达式匹配完整的 #if __has_include 块
@@ -64,7 +64,7 @@ content = re.sub(r'\s*\[AudioSessionPlugin registerWithRegistrar.*?\]\;', '', co
 
 # 写回文件
 with open('ios/Runner/GeneratedPluginRegistrant.m', 'w') as f:
-    f.write(content)
+  f.write(content)
 
 print("已移除 audio_session 相关代码")
 EOF
