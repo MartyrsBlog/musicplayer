@@ -12,6 +12,7 @@ jobs:
     runs-on: macos-latest
     
     steps:
+    # 阶段1: 环境配置
     - name: Checkout code
       uses: actions/checkout@v4
       
@@ -22,20 +23,15 @@ jobs:
         channel: 'stable'
         cache: true
         
-    - name: Install Flutter dependencies
-      run: flutter pub get
-      
-    - name: Verify Flutter version
-      run: |
-        flutter --version
-        dart --version
-        
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: '16.4.0'
         
-    - name: Build iOS (No codesign)
+    - name: Install Flutter dependencies
+      run: flutter pub get
+      
+    - name: Clean and setup iOS environment
       run: |
         # 彻底清理之前的构建
         flutter clean
@@ -55,17 +51,68 @@ jobs:
         pod install --repo-update
         cd ..
         
-        # 构建 iOS 应用
-        flutter build ios --release --no-codesign
+    # 阶段2: 检查环境和依赖
+    - name: Verify Flutter version
+      run: |
+        echo "=== Flutter 版本信息 ==="
+        flutter --version
+        dart --version
+        
+    - name: Verify dependencies
+      run: |
+        echo "=== Flutter 依赖检查 ==="
+        flutter pub deps --style=tree | head -20
+        echo ""
+        echo "=== audio_session 版本 ==="
+        flutter pub deps --style=tree | grep audio_session || echo "audio_session 未找到"
+        
+    - name: Verify iOS environment
+      run: |
+        echo "=== Xcode 版本 ==="
+        xcodebuild -version
+        echo ""
+        echo "=== iOS 模拟器列表 ==="
+        xcrun simctl list devices available
+        echo ""
+        echo "=== CocoaPods 版本 ==="
+        pod --version
+        echo ""
+        echo "=== 检查 iOS Pods ==="
+        cd ios
+        echo "Pods 目录内容:"
+        ls -la Pods/ || echo "Pods 目录不存在"
+        echo ""
+        echo "已安装的 Pods:"
+        pod list | head -10
+        cd ..
+        
+    - name: Verify plugin registration
+      run: |
+        echo "=== 检查插件注册文件 ==="
+        if [ -f "ios/Runner/GeneratedPluginRegistrant.m" ]; then
+          echo "GeneratedPluginRegistrant.m 存在"
+          echo "内容预览:"
+          head -20 ios/Runner/GeneratedPluginRegistrant.m
+        else
+          echo "GeneratedPluginRegistrant.m 不存在"
+        fi
+        
+    # 阶段3: 构建应用
+    - name: Build iOS (No codesign)
+      run: |
+        echo "=== 开始构建 iOS 应用 ==="
+        flutter build ios --release --no-codesign --verbose
         
     - name: Create IPA
       run: |
+        echo "=== 创建 IPA 文件 ==="
         mkdir -p build/ios/ipa
         cd build/ios/iphoneos/Runner.app
         zip -r ../../../../build/ios/ipa/musicplayer.ipa . 
         
     - name: Verify IPA
       run: |
+        echo "=== 验证 IPA 文件 ==="
         ls -la build/ios/ipa/
         file build/ios/ipa/musicplayer.ipa 
         
