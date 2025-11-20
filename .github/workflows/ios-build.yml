@@ -28,6 +28,11 @@ jobs:
       with:
         xcode-version: '16.4.0'
         
+    - name: Install CocoaPods
+      run: |
+        sudo gem install cocoapods
+        pod --version
+        
     - name: Install Flutter dependencies
       run: flutter pub get
       
@@ -48,8 +53,11 @@ jobs:
         
         # 重新生成 iOS 项目文件，让 Flutter 自动处理插件
         flutter precache --ios
+        # 确保插件正确配置
+        flutter config --enable-ios
         cd ios
-        pod install --repo-update
+        # 使用最新的 CocoaPods 安装插件
+        pod install --repo-update --clean-install
         cd ..
         
     # 阶段2: 检查环境和依赖
