@@ -81,7 +81,7 @@ lib/
     └── file_format_fixer.dart    # 文件格式修复工具
 
 .github/workflows/
-└── ios-build-fixed.yml           # iOS 自动构建工作流
+└── ios-build.yml                 # iOS 自动构建工作流
 ```
 
 ### 技术栈
@@ -181,14 +181,17 @@ flutter test
 # 格式化代码
 dart format .
 
-# 生成构建文件
-flutter build_runner build
-
 # 生成应用图标
 flutter pub run flutter_launcher_icons:main
 
 # 修复音频文件格式
 dart run fix_audio_formats.dart
+
+# 清理构建缓存
+flutter clean
+
+# 获取依赖
+flutter pub get
 ```
 
 ## iOS 自动构建
@@ -205,12 +208,12 @@ dart run fix_audio_formats.dart
 
 #### 使用方法
 1. 推送代码到 GitHub 仓库
-2. 在 GitHub Actions 页面手动触发 "Build iOS IPA (Fixed)" 工作流
+2. 在 GitHub Actions 页面手动触发 "Build iOS IPA" 工作流
 3. 等待构建完成（约 5-10 分钟）
 4. 下载生成的 IPA 文件
 
 #### 工作流文件位置
-- 配置文件：`.github/workflows/ios-build-fixed.yml`
+- 配置文件：`.github/workflows/ios-build.yml`
 - 支持的 Flutter 版本：3.35.7（稳定版）
 
 ## 界面更新
@@ -279,6 +282,13 @@ colorScheme: const ColorScheme.light(
 - **职责**: 音频文件格式检测和修复
 - **功能**: 自动检测文件实际格式、重命名错误扩展名
 - **位置**: `lib/utils/file_format_fixer.dart`
+
+### 文件格式修复工具
+项目根目录包含独立的文件格式修复工具脚本：
+- **位置**: `fix_audio_formats.dart`
+- **功能**: 批量检测和修复音频文件扩展名错误
+- **支持格式**: MP3、M4A、FLAC、WAV等
+- **使用方式**: `dart run fix_audio_formats.dart`
 
 ## 界面组件
 
@@ -530,6 +540,14 @@ flutter test --coverage
 dart run fix_audio_formats.dart
 ```
 
----
+## 项目初始化流程
+
+### 启动流程
+应用启动时会自动执行以下初始化步骤：
+1. **音频引擎初始化**: `JustAudioMediaKit.ensureInitialized()` - 确保Linux平台音频支持
+2. **元数据引擎初始化**: `MetadataGod.initialize()` - 初始化音频元数据读取功能
+3. **临时文件清理**: `MusicDownloadService.cleanupOldTempCovers()` - 清理过期的临时封面文件
+
+#---
 
 *最后更新: 2025年11月20日*
