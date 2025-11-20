@@ -9,8 +9,7 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  # Flutter plugins
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  # Flutter will automatically add dependencies here
 end
 
 post_install do |installer|

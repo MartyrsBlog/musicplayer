@@ -46,7 +46,8 @@ jobs:
         cd ..
         flutter pub get
         
-        # 重新生成 iOS 项目文件
+        # 重新生成 iOS 项目文件，让 Flutter 自动处理插件
+        flutter precache --ios
         cd ios
         pod install --repo-update
         cd ..
