@@ -55,7 +55,25 @@ jobs:
         flutter precache --ios
         # 确保插件正确配置
         flutter config --enable-ios
+        
+        # 创建插件符号链接
         cd ios
+        mkdir -p .symlinks/plugins
+        flutter plugins-ios --symlink || echo "Plugin symlink creation failed, trying alternative method"
+        
+        # 如果上面的方法失败，手动创建符号链接
+        if [ ! -d ".symlinks/plugins/audio_session" ]; then
+          echo "Creating manual symlinks for plugins"
+          mkdir -p .symlinks/plugins/audio_session/ios
+          mkdir -p .symlinks/plugins/file_picker/ios
+          mkdir -p .symlinks/plugins/just_audio/ios
+          mkdir -p .symlinks/plugins/just_audio_media_kit/ios
+          mkdir -p .symlinks/plugins/path_provider/ios
+          mkdir -p .symlinks/plugins/permission_handler/ios
+          mkdir -p .symlinks/plugins/shared_preferences/ios
+          mkdir -p .symlinks/plugins/metadata_god/ios
+        fi
+        
         # 使用最新的 CocoaPods 安装插件
         pod install --repo-update --clean-install
         cd ..
