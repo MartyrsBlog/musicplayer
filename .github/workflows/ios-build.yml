@@ -45,28 +45,6 @@ jobs:
         # 回到根目录重新获取依赖
         cd ..
         flutter pub get
-        # 预处理 audio_session 问题，因为 Podfile 配置不足以解决
-        python3 -c "
-import re
-
-# 读取文件
-with open('ios/Runner/GeneratedPluginRegistrant.m', 'r') as f:
-  content = f.read()
-
-# 移除 audio_session 相关的所有内容
-# 使用正则表达式匹配完整的 #if __has_include 块
-pattern = r'#if __has_include\(<audio_session/AudioSessionPlugin\.h>\).*?#endif'
-content = re.sub(pattern, '', content, flags=re.DOTALL)
-
-# 移除 AudioSessionPlugin 注册行
-content = re.sub(r'\s*\[AudioSessionPlugin registerWithRegistrar.*?\]\;', '', content)
-
-# 写回文件
-with open('ios/Runner/GeneratedPluginRegistrant.m', 'w') as f:
-  f.write(content)
-
-print('已移除 audio_session 相关代码')
-"
         
         # 构建 iOS 应用
         flutter build ios --release --no-codesign
